@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Check } from 'lucide-react';
+import { FileText, Check, Menu } from 'lucide-react';
 
 import { Sidebar } from '../components/Layout/Sidebar';
 import { DualFileUpload } from '../components/FileUpload/DualFileUpload';
@@ -25,6 +25,7 @@ export const AnalyzePage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium' | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const {
     currentAnalysis,
@@ -174,9 +175,23 @@ export const AnalyzePage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar onUploadClick={handleClearFiles} />
+      <Sidebar 
+        onUploadClick={handleClearFiles} 
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       
       <main className="flex-1 flex overflow-hidden" aria-label="Electrical Analysis Interface">
+        {/* Mobile Menu Button */}
+        <div className="absolute top-4 left-4 z-30 lg:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 bg-white text-gray-600 hover:bg-gray-100 rounded-lg transition-colors shadow-sm border border-gray-200"
+            aria-label="Open menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
         {!currentAnalysis ? (
           // Upload View - Centered
           <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">

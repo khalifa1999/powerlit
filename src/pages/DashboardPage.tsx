@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Calendar, Zap, Trash2, ArrowRight } from 'lucide-react';
+import { FileText, Calendar, Zap, Trash2, ArrowRight, Menu } from 'lucide-react';
 import { Sidebar } from '../components/Layout/Sidebar';
 import { useAuthStore } from '../stores/authStore';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -10,6 +10,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, savedAnalyses, deleteAnalysis } = useAuthStore();
   const { setAnalysis } = useAnalysisStore();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleViewAnalysis = (analysis: typeof savedAnalyses[0]) => {
     setAnalysis(analysis.analysis);
@@ -35,10 +36,25 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar onUploadClick={() => navigate('/analyze')} />
+      <Sidebar 
+        onUploadClick={() => navigate('/analyze')} 
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <main className="flex-1 overflow-y-auto" aria-label="Dashboard">
         <div className="max-w-6xl mx-auto p-6">
+          {/* Mobile Header with Menu Button */}
+          <div className="flex items-center gap-4 mb-6 lg:hidden">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </div>
+
           {/* Header */}
           <header className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>

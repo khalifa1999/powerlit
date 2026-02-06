@@ -6,9 +6,11 @@ import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
   onUploadClick: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick, isOpen = true, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentAnalysis } = useAnalysisStore();
@@ -23,7 +25,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <div
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          w-64 bg-white border-r border-gray-200 h-screen flex flex-col
+          transform transition-transform duration-300 ease-in-out
+          lg:transform-none lg:translate-x-0
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <Link to="/" className="flex items-center gap-2">
@@ -117,5 +136,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
