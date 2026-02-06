@@ -410,7 +410,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
       {/* Summary */}
       <div className={`glass-card bg-[#265a39] text-black rounded-xl p-4 ${isLocked ? 'opacity-50' : ''}`}>
         <h3 className="font-semibold mb-2">Analysis Summary</h3>
-        <p className="text-sm text-white/90">{analysis.summary}</p>
+        <p className="text-sm text-gray-900">{analysis.summary}</p>
       </div>
     </div>
   );
