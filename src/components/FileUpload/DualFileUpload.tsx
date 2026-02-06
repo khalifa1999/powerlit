@@ -138,9 +138,9 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
 
   const getFileIcon = (type: string) => {
     if (type.includes('pdf')) {
-      return <FileText className="w-10 h-10 text-[#007A41]" />;
+      return <FileText className="w-10 h-10 text-[#265a39]" />;
     }
-    return <FileImage className="w-10 h-10 text-[#007A41]" />;
+    return <FileImage className="w-10 h-10 text-[#265a39]" />;
   };
 
   const canAnalyze = uploadMode === 'single' 
@@ -151,23 +151,23 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
     <div className="w-full space-y-6">
       {/* Upload Mode Toggle */}
       <div className="flex justify-center">
-        <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+        <div className="glass-card bg-gray-50 p-1 rounded-xl inline-flex border border-gray-200">
           <button
             onClick={() => setUploadMode('single')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
               uploadMode === 'single' 
-                ? 'bg-white text-[#007A41] shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-[#265a39] text-white shadow-lg shadow-[#265a39]/25' 
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Single File
           </button>
           <button
             onClick={() => setUploadMode('dual')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all-smooth ${
               uploadMode === 'dual' 
-                ? 'bg-white text-[#007A41] shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-[#265a39] text-white shadow-lg shadow-[#265a39]/25' 
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Two Images
@@ -184,10 +184,10 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
               onDragLeave={(e) => { e.preventDefault(); setIsDraggingSingle(false); }}
               onDrop={handleSingleFileDrop}
               className={`
-                border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
+                border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer glass-card
                 ${isDraggingSingle 
-                  ? 'border-[#FFC132] bg-[#FFC132]/10' 
-                  : 'border-gray-300 hover:border-[#007A41] hover:bg-gray-50'
+                  ? 'border-[#265a39] bg-[#265a39]/10' 
+                  : 'border-gray-300 hover:border-[#265a39] hover:bg-gray-50'
                 }
               `}
             >
@@ -200,30 +200,30 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
               />
               <label htmlFor="single-file-input" className="cursor-pointer block">
                 <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-lg font-medium text-gray-700 mb-2">
+                <p className="text-lg font-medium text-gray-900 mb-2">
                   Drop your electrical document here
                 </p>
-                <p className="text-sm text-gray-500 mb-2">
+                <p className="text-sm text-gray-600 mb-2">
                   Contains both legend and floor plan
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   PDF, PNG, or JPG • Max 15MB
                 </p>
               </label>
             </div>
           ) : (
-            <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+            <div className="glass-card bg-gray-50 rounded-xl p-6 border border-gray-200">
               <div className="flex items-center gap-4">
                 {getFileIcon(selectedFiles.single.type)}
                 <div className="flex-1">
-                  <p className="font-medium text-gray-800">{selectedFiles.single.name}</p>
-                  <p className="text-sm text-gray-500">{formatFileSize(selectedFiles.single.size)}</p>
+                  <p className="font-medium text-gray-900">{selectedFiles.single.name}</p>
+                  <p className="text-sm text-gray-600">{formatFileSize(selectedFiles.single.size)}</p>
                 </div>
                 <button
                   onClick={handleClearSingle}
                   className="p-2 hover:bg-gray-200 rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
             </div>
@@ -245,10 +245,10 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                 onDragLeave={(e) => { e.preventDefault(); setIsDraggingLegend(false); }}
                 onDrop={handleLegendDrop}
                 className={`
-                  border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer h-full
+                  border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer h-full glass-card
                   ${isDraggingLegend 
-                    ? 'border-[#FFC132] bg-[#FFC132]/10' 
-                    : 'border-gray-300 hover:border-[#007A41] hover:bg-gray-50'
+                    ? 'border-[#265a39] bg-[#265a39]/10' 
+                    : 'border-gray-300 hover:border-[#265a39] hover:bg-gray-50'
                   }
                 `}
               >
@@ -261,30 +261,30 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                 />
                 <label htmlFor="legend-file-input" className="cursor-pointer block">
                   <Image className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-                  <p className="font-medium text-gray-700 mb-1">
+                  <p className="font-medium text-gray-900 mb-1">
                     Legend Image
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-600">
                     Symbol reference chart
                   </p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-gray-500 mt-2">
                     PNG or JPG
                   </p>
                 </label>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="glass-card bg-gray-50 rounded-xl p-4 border border-gray-200">
                 <div className="flex items-center gap-3">
-                  <FileImage className="w-8 h-8 text-[#007A41]" />
+                  <FileImage className="w-8 h-8 text-[#265a39]" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-sm truncate">{selectedFiles.legend.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(selectedFiles.legend.size)}</p>
+                    <p className="font-medium text-gray-900 text-sm truncate">{selectedFiles.legend.name}</p>
+                    <p className="text-xs text-gray-600">{formatFileSize(selectedFiles.legend.size)}</p>
                   </div>
                   <button
                     onClick={handleClearLegend}
                     className="p-1.5 hover:bg-gray-200 rounded-full transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-500" />
+                    <X className="w-4 h-4 text-gray-600" />
                   </button>
                 </div>
               </div>
@@ -304,10 +304,10 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                 onDragLeave={(e) => { e.preventDefault(); setIsDraggingFloorPlan(false); }}
                 onDrop={handleFloorPlanDrop}
                 className={`
-                  border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer h-full
+                  border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer h-full glass-card
                   ${isDraggingFloorPlan 
-                    ? 'border-[#FFC132] bg-[#FFC132]/10' 
-                    : 'border-gray-300 hover:border-[#007A41] hover:bg-gray-50'
+                    ? 'border-[#265a39] bg-[#265a39]/10' 
+                    : 'border-gray-300 hover:border-[#265a39] hover:bg-gray-50'
                   }
                 `}
               >
@@ -320,30 +320,30 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                 />
                 <label htmlFor="floorplan-file-input" className="cursor-pointer block">
                   <Map className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-                  <p className="font-medium text-gray-700 mb-1">
+                  <p className="font-medium text-gray-900 mb-1">
                     Floor Plan
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-600">
                     Electrical layout drawing
                   </p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-gray-500 mt-2">
                     PNG or JPG
                   </p>
                 </label>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="glass-card bg-gray-50 rounded-xl p-4 border border-gray-200">
                 <div className="flex items-center gap-3">
-                  <FileImage className="w-8 h-8 text-[#007A41]" />
+                  <FileImage className="w-8 h-8 text-[#265a39]" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-sm truncate">{selectedFiles.floorPlan.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(selectedFiles.floorPlan.size)}</p>
+                    <p className="font-medium text-gray-900 text-sm truncate">{selectedFiles.floorPlan.name}</p>
+                    <p className="text-xs text-gray-600">{formatFileSize(selectedFiles.floorPlan.size)}</p>
                   </div>
                   <button
                     onClick={handleClearFloorPlan}
                     className="p-1.5 hover:bg-gray-200 rounded-full transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-500" />
+                    <X className="w-4 h-4 text-gray-600" />
                   </button>
                 </div>
               </div>
@@ -360,8 +360,8 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
       {/* Analysis Button */}
       {canAnalyze && (
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-full">
-            <div className="w-2 h-2 bg-[#007A41] rounded-full animate-pulse"></div>
+          <div className="inline-flex items-center gap-2 text-sm text-gray-900 glass-card bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
+            <div className="w-2 h-2 bg-[#265a39] rounded-full animate-pulse"></div>
             Ready to analyze
           </div>
         </div>

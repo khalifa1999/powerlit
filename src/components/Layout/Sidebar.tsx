@@ -1,30 +1,72 @@
 import React from 'react';
-import { Upload, FileText, Zap, Info } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Upload, FileText, Zap, LayoutDashboard, LogOut } from 'lucide-react';
 import { useAnalysisStore } from '../../stores/analysisStore';
+import { useAuthStore } from '../../stores/authStore';
 
 interface SidebarProps {
   onUploadClick: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
-  const { currentAnalysis, hasUsedFreeAnalysis, isPaid } = useAnalysisStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { currentAnalysis } = useAnalysisStore();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    sessionStorage.clear();
+    navigate('/');
+  };
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="w-64 bg-[#007A41] h-screen flex flex-col text-white">
+    <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
       {/* Logo */}
-      <div className="p-6 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Zap className="w-8 h-8 text-[#FFC132]" />
-          <h1 className="text-2xl font-bold">PowerLit</h1>
-        </div>
-        <p className="text-sm text-white/70 mt-1">Electrical Analysis AI</p>
+      <div className="p-6 border-b border-gray-200">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#265a39] rounded-lg flex items-center justify-center">
+            <Zap className="w-5 h-5 text-[#fdce4e]" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">PowerLit</h1>
+        </Link>
+        <p className="text-sm text-gray-500 mt-1">Electrical Analysis AI</p>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-4 space-y-2">
+        {/* Dashboard Link */}
+        <Link
+          to="/dashboard"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+            isActive('/dashboard')
+              ? 'bg-[#265a39] text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="font-medium">Dashboard</span>
+        </Link>
+
+        {/* Analyze Link */}
+        <Link
+          to="/analyze"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+            isActive('/analyze')
+              ? 'bg-[#265a39] text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          <Upload className="w-5 h-5" />
+          <span className="font-medium">New Analysis</span>
+        </Link>
+
+        {/* Upload Button */}
         <button
           onClick={onUploadClick}
-          className="w-full bg-[#FFC132] text-[#007A41] font-semibold py-3 px-4 rounded-lg flex items-center gap-2 hover:bg-[#FFC132]/90 transition-colors"
+          className="w-full bg-[#265a39] text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#1e4a2d] transition-all-smooth shadow-lg shadow-[#265a39]/25 mt-4"
         >
           <Upload className="w-5 h-5" />
           Upload Blueprint
@@ -32,44 +74,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
 
         {currentAnalysis && (
           <div className="mt-6">
-            <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
               Current Analysis
             </h3>
-            <div className="bg-white/10 rounded-lg p-3">
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#FFC132]" />
-                <span className="text-sm truncate">{currentAnalysis.fileName}</span>
+                <FileText className="w-4 h-4 text-[#265a39]" />
+                <span className="text-sm truncate text-gray-900">{currentAnalysis.fileName}</span>
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs bg-[#FFC132] text-[#007A41] px-2 py-1 rounded">
-                  {isPaid ? 'Full Access' : hasUsedFreeAnalysis ? 'Preview' : 'Free'}
+              <div className="mt-2">
+                <p className="text-xs text-gray-900 line-clamp-2 font-medium">
+                  {currentAnalysis.summary}
+                </p>
+              </div>
+              <div className="mt-2">
+                <span className="text-xs px-2 py-1 rounded-lg font-medium bg-[#fdce4e] text-gray-900">
+                  Active
                 </span>
               </div>
             </div>
           </div>
         )}
-
-        {/* Usage Info */}
-        <div className="mt-6 p-4 bg-white/10 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 text-[#FFC132] mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Free Analysis</p>
-              <p className="text-xs text-white/70 mt-1">
-                {hasUsedFreeAnalysis 
-                  ? 'You have used your free analysis. Pay 500 GHS for full access.' 
-                  : 'Upload your first blueprint for a free complete analysis.'}
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-white/20 text-xs text-white/50 text-center">
-        PowerLit © 2024
-        <br />
-        Ghana Energy Commission Partner
+      {/* User Section */}
+      <div className="p-4 border-t border-gray-200">
+        {user && (
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-900 truncate">{user.name || user.email}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          </div>
+        )}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="text-sm font-medium">Logout</span>
+        </button>
+        <div className="mt-4 text-xs text-gray-400 text-center">
+          <p>PowerLit © 2024</p>
+        </div>
       </div>
     </div>
   );

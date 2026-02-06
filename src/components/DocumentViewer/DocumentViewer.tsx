@@ -42,11 +42,11 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
   const currentFileType = getCurrentFileType();
 
   return (
-    <div className="h-full flex flex-col bg-gray-100">
+    <div className="h-full flex flex-col bg-gray-50/50">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 p-3">
+      <div className="glass-card bg-white border-b border-gray-200 p-3">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-700">
+          <h3 className="font-semibold text-gray-600">
             {hasDualImages ? 'Uploaded Images' : 'Uploaded Blueprint'}
           </h3>
           <div className="flex items-center gap-2">
@@ -57,7 +57,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
             >
               <ZoomOut className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="text-sm text-gray-600 min-w-[60px] text-center">
+            <span className="text-sm text-gray-600 min-w-[60px] text-center font-mono">
               {zoom}%
             </span>
             <button
@@ -82,9 +82,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('floorplan')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all-smooth ${
                 activeTab === 'floorplan'
-                  ? 'bg-[#007A41] text-white'
+                  ? 'bg-[#265a39] text-white shadow-lg shadow-[#265a39]/25'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -93,9 +93,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
             </button>
             <button
               onClick={() => setActiveTab('legend')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all-smooth ${
                 activeTab === 'legend'
-                  ? 'bg-[#007A41] text-white'
+                  ? 'bg-[#265a39] text-white shadow-lg shadow-[#265a39]/25'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -109,7 +109,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
       {/* Document */}
       <div className="flex-1 overflow-auto p-4 flex items-center justify-center">
         <div 
-          className="bg-white shadow-lg transition-transform duration-200"
+          className="bg-white shadow-xl rounded-xl overflow-hidden transition-transform duration-200"
           style={{ 
             transform: `scale(${zoom / 100})`,
             transformOrigin: 'center center'
@@ -117,14 +117,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
         >
           {currentFileData ? (
             currentFileType?.includes('pdf') ? (
-              <div className="w-[800px] h-[600px] bg-gray-50 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl">
-                <div className="bg-[#007A41]/10 p-8 rounded-full mb-6">
-                  <FileText className="w-24 h-24 text-[#007A41]" />
+              <div className="w-[800px] h-[600px] glass-card bg-gray-50 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl">
+                <div className="bg-[#265a39]/20 p-8 rounded-full mb-6">
+                  <FileText className="w-24 h-24 text-[#265a39]" />
                 </div>
-                <p className="text-xl font-semibold text-gray-800 mb-2">PDF Document Loaded</p>
+                <p className="text-xl font-semibold text-gray-900 mb-2">PDF Document Loaded</p>
                 <p className="text-sm text-gray-500">{analysis.fileName}</p>
-                <div className="mt-6 flex items-center gap-2 text-sm text-[#007A41]">
-                  <div className="w-2 h-2 bg-[#007A41] rounded-full animate-pulse"></div>
+                <div className="mt-6 flex items-center gap-2 text-sm text-[#265a39]">
+                  <div className="w-2 h-2 bg-[#265a39] rounded-full animate-pulse"></div>
                   <span>Ready for analysis</span>
                 </div>
               </div>
@@ -136,7 +136,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
               />
             )
           ) : (
-            <div className="w-[800px] h-[600px] bg-gray-200 flex items-center justify-center">
+            <div className="w-[800px] h-[600px] bg-gray-50 flex items-center justify-center rounded-xl">
               <p className="text-gray-500">Document preview not available</p>
             </div>
           )}
@@ -145,7 +145,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ analysis }) => {
 
       {/* Legend info footer */}
       {activeTab === 'legend' && hasLegend && (
-        <div className="bg-white border-t border-gray-200 p-3">
+        <div className="glass-card bg-white border-t border-gray-200 p-3">
           <p className="text-sm text-gray-600 text-center">
             <strong>Legend:</strong> Reference chart showing electrical symbols used in the floor plan
           </p>

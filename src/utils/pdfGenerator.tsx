@@ -7,9 +7,10 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: 'Helvetica',
+    backgroundColor: '#1a1a1a',
   },
   header: {
-    backgroundColor: '#007A41',
+    backgroundColor: '#ff4500',
     padding: 20,
     margin: -30,
     marginBottom: 20,
@@ -20,7 +21,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   headerSubtext: {
-    color: '#FFC132',
+    color: '#ffaa80',
     fontSize: 12,
     marginTop: 5,
   },
@@ -30,18 +31,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#007A41',
+    color: '#ff4500',
     marginBottom: 8,
-    borderBottom: '1 solid #007A41',
+    borderBottom: '1 solid #ff4500',
     paddingBottom: 4,
   },
   text: {
     fontSize: 10,
     marginBottom: 4,
+    color: '#a0a0a0',
   },
   label: {
     fontWeight: 'bold',
-    color: '#333',
+    color: 'white',
   },
   grid: {
     flexDirection: 'row',
@@ -50,36 +52,38 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: '48%',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#2a2a2a',
     padding: 10,
     borderRadius: 4,
+    border: '1 solid #333333',
   },
   gridLabel: {
     fontSize: 9,
-    color: '#666',
+    color: '#a0a0a0',
     marginBottom: 2,
   },
   gridValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#007A41',
+    color: '#ff4500',
   },
   table: {
     width: '100%',
   },
   tableRow: {
     flexDirection: 'row',
-    borderBottom: '1 solid #ddd',
+    borderBottom: '1 solid #333333',
     paddingVertical: 6,
   },
   tableHeader: {
-    backgroundColor: '#007A41',
+    backgroundColor: '#ff4500',
     color: 'white',
     fontWeight: 'bold',
   },
   tableCell: {
     flex: 1,
     fontSize: 9,
+    color: '#a0a0a0',
   },
   complianceItem: {
     flexDirection: 'row',
@@ -87,15 +91,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   checkmark: {
-    color: '#007A41',
+    color: '#ff4500',
     marginRight: 6,
   },
   recommendation: {
-    backgroundColor: '#FFF9E6',
+    backgroundColor: '#2a2a2a',
     padding: 10,
     borderRadius: 4,
     marginBottom: 8,
-    borderLeft: '3 solid #FFC132',
+    borderLeft: '3 solid #ff4500',
   },
   footer: {
     position: 'absolute',
@@ -104,30 +108,31 @@ const styles = StyleSheet.create({
     right: 30,
     textAlign: 'center',
     fontSize: 8,
-    color: '#999',
+    color: '#666666',
   },
   priceCell: {
     flex: 1,
     fontSize: 9,
     textAlign: 'right',
+    color: '#a0a0a0',
   },
   grandTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#2a2a2a',
     padding: 10,
     marginTop: 10,
-    borderTop: '2 solid #007A41',
+    borderTop: '2 solid #ff4500',
   },
   grandTotalLabel: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#007A41',
+    color: 'white',
   },
   grandTotalValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#007A41',
+    color: '#ff4500',
   },
 });
 
@@ -322,7 +327,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({ analysis }) =>
     <PDFDownloadLink
       document={<AnalysisPDF analysis={analysis} />}
       fileName={`powerlit-analysis-${analysis.id}.pdf`}
-      className="bg-[#007A41] text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-[#007A41]/90 transition-colors"
+      className="bg-[#ff4500] text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-[#ff5722] transition-all-smooth shadow-lg shadow-[#ff4500]/25"
     >
       {({ loading }) => (loading ? 'Generating PDF...' : 'Download PDF Report')}
     </PDFDownloadLink>
