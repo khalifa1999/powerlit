@@ -9,9 +9,9 @@ interface LoginModalProps {
   mode?: 'login' | 'signup';
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ 
-  isOpen, 
-  onClose, 
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
   onSuccess,
   mode: initialMode = 'login'
 }) => {
@@ -59,11 +59,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
@@ -89,8 +89,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="text-gray-600 mb-6">
-            {mode === 'login' 
-              ? 'Sign in to unlock full analysis features' 
+            {mode === 'login'
+              ? 'Sign in to unlock full analysis features'
               : 'Sign up to save your analyses and unlock premium features'}
           </p>
 
@@ -188,13 +188,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               >
                 {mode === 'login' ? 'Sign up' : 'Sign in'}
               </button>
-            </p>
-          </div>
-
-          {/* Demo note */}
-          <div className="mt-4 p-3 bg-[#fdce4e]/10 border border-[#fdce4e]/30 rounded-lg">
-            <p className="text-sm text-gray-600 text-center">
-              <strong>Demo Mode:</strong> Any email and password will work
             </p>
           </div>
         </div>

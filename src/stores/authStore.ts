@@ -21,7 +21,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   savedAnalyses: SavedAnalysis[];
-  
+
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, password: string, name: string) => Promise<boolean>;
@@ -52,11 +52,11 @@ export const useAuthStore = create<AuthState>()(
           createdAt: new Date().toISOString(),
         };
 
-        set({ 
-          user, 
-          isAuthenticated: true 
+        set({
+          user,
+          isAuthenticated: true
         });
-        
+
         return true;
       },
 
@@ -73,19 +73,19 @@ export const useAuthStore = create<AuthState>()(
           createdAt: new Date().toISOString(),
         };
 
-        set({ 
-          user, 
+        set({
+          user,
           isAuthenticated: true,
           savedAnalyses: []
         });
-        
+
         return true;
       },
 
       logout: () => {
-        set({ 
-          user: null, 
-          isAuthenticated: false 
+        set({
+          user: null,
+          isAuthenticated: false
         });
       },
 

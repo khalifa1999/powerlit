@@ -49,7 +49,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
 
   const handleSave = () => {
     if (editForm) {
-      const updatedMatches = symbolMatches.map(m => 
+      const updatedMatches = symbolMatches.map(m =>
         m.id === editForm.id ? { ...editForm, totalPrice: editForm.count * editForm.unitPrice } : m
       );
       setSymbolMatches(updatedMatches);
@@ -163,8 +163,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
                           onChange={(e) => {
                             const type = e.target.value as ComponentType;
                             const price = COMPONENT_PRICES[type] || 500;
-                            setEditForm(prev => prev ? { 
-                              ...prev, 
+                            setEditForm(prev => prev ? {
+                              ...prev,
                               type,
                               unitPrice: price,
                               totalPrice: prev.count * price
@@ -186,8 +186,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
                           value={editForm?.count || 0}
                           onChange={(e) => {
                             const count = parseInt(e.target.value) || 0;
-                            setEditForm(prev => prev ? { 
-                              ...prev, 
+                            setEditForm(prev => prev ? {
+                              ...prev,
                               count,
                               totalPrice: count * prev.unitPrice
                             } : null);
@@ -204,8 +204,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
                           value={editForm?.unitPrice || 0}
                           onChange={(e) => {
                             const unitPrice = parseInt(e.target.value) || 0;
-                            setEditForm(prev => prev ? { 
-                              ...prev, 
+                            setEditForm(prev => prev ? {
+                              ...prev,
                               unitPrice,
                               totalPrice: prev.count * unitPrice
                             } : null);
@@ -395,7 +395,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
                 <span className="text-sm font-bold text-[#265a39] font-mono">{rec.percentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div 
+                <div
                   className="bg-[#265a39] h-2 rounded-full transition-all duration-500"
                   style={{ width: `${rec.percentage}%` }}
                 />
@@ -408,7 +408,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ analysis, isLocked }
       </div>
 
       {/* Summary */}
-      <div className={`glass-card bg-[#265a39] text-white rounded-xl p-4 ${isLocked ? 'opacity-50' : ''}`}>
+      <div className={`glass-card bg-[#265a39] text-black rounded-xl p-4 ${isLocked ? 'opacity-50' : ''}`}>
         <h3 className="font-semibold mb-2">Analysis Summary</h3>
         <p className="text-sm text-white/90">{analysis.summary}</p>
       </div>

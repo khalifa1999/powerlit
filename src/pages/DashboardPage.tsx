@@ -36,7 +36,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar onUploadClick={() => navigate('/analyze')} />
-      
+
       <main className="flex-1 overflow-y-auto" aria-label="Dashboard">
         <div className="max-w-6xl mx-auto p-6">
           {/* Header */}
@@ -69,7 +69,7 @@ export const DashboardPage: React.FC = () => {
                 <span className="text-gray-600">Last Analysis</span>
               </div>
               <div className="text-lg font-semibold text-gray-900">
-                {savedAnalyses.length > 0 
+                {savedAnalyses.length > 0
                   ? formatDate(savedAnalyses[0].createdAt)
                   : 'No analyses yet'
                 }
@@ -86,8 +86,8 @@ export const DashboardPage: React.FC = () => {
               <div className="text-3xl font-bold text-gray-900 font-mono">
                 {savedAnalyses.length > 0
                   ? formatLoad(
-                      savedAnalyses.reduce((sum, a) => sum + a.analysis.loadCalculation.tcl, 0)
-                    )
+                    savedAnalyses.reduce((sum, a) => sum + a.analysis.loadCalculation.tcl, 0)
+                  )
                   : '0 kW'
                 }
               </div>
@@ -97,7 +97,7 @@ export const DashboardPage: React.FC = () => {
           {/* Analyses List */}
           <section aria-label="Saved Analyses">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Analyses</h2>
-            
+
             {savedAnalyses.length === 0 ? (
               <div className="bg-white rounded-xl p-12 border border-gray-200 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -134,7 +134,7 @@ export const DashboardPage: React.FC = () => {
                             {savedAnalysis.analysis.buildingType}
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />

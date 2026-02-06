@@ -7,7 +7,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      
+
       <main aria-label="PowerLit Homepage">
         {/* Hero Section */}
         <section aria-labelledby="hero-heading" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
@@ -20,7 +20,7 @@ export const HomePage: React.FC = () => {
                   <span className="text-[#265a39]">start here.</span>
                 </h1>
                 <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                  Transform electrical blueprints into accurate technical specifications with AI. 
+                  Transform electrical blueprints into accurate technical specifications with AI.
                   Ensure GS1009 compliance and reduce project costs with intelligent blueprint analysis.
                 </p>
               </div>
@@ -48,7 +48,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-[#265a39] font-mono">GS1009</div>
-                  <div className="text-sm text-gray-600">Compliant</div>
+                  <div className="text-sm text-gray-600">Compliance</div>
                 </div>
               </div>
 
@@ -142,7 +142,7 @@ export const HomePage: React.FC = () => {
             <div className="bg-[#265a39] rounded-3xl p-8 sm:p-12 relative overflow-hidden max-w-3xl mx-auto text-center">
               {/* Background glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#fdce4e]/20 rounded-full blur-3xl" aria-hidden="true" />
-              
+
               <div className="relative z-10">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
                   Ready to transform your electrical planning?
@@ -173,7 +173,7 @@ export const HomePage: React.FC = () => {
             <span className="text-gray-900 font-semibold">PowerLit</span>
           </div>
           <p className="text-sm text-gray-500">
-            © 2024 PowerLit. Ghana Energy Commission Partner.
+            © 2026 PowerLit. Ghana Energy Commission Partner. All rights reserved.
           </p>
         </div>
       </footer>
