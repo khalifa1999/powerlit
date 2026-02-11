@@ -83,13 +83,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick, isOpen = true, 
         </Link>
 
         {/* Upload Button */}
-        <button
+        {/* <button
           onClick={onUploadClick}
           className="w-full bg-[#265a39] text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#1e4a2d] transition-all-smooth shadow-lg shadow-[#265a39]/25 mt-4"
         >
           <Upload className="w-5 h-5" />
           Upload Blueprint
-        </button>
+        </button> */}
 
         {currentAnalysis && (
           <div className="mt-6">

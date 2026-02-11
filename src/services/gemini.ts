@@ -1,3 +1,5 @@
+/* GEMINI INTEGRATION - COMMENTED OUT
+ * Backend API will be used instead
 import { Analysis, ElectricalComponent, SymbolMatch } from '../types/analysis';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -566,3 +568,5 @@ export function generateMockAnalysis(): Analysis {
     symbolMatches
   };
 }
+
+END OF GEMINI INTEGRATION COMMENT BLOCK */

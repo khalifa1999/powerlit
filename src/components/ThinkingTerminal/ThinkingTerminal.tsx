@@ -1,19 +1,23 @@
 import React from 'react';
 import { CalculationStep } from '../../types/analysis';
-import { Check, Loader2, Cpu } from 'lucide-react';
+import { Check, Loader2, Cpu, Clock, AlertCircle } from 'lucide-react';
 
 interface ThinkingTerminalProps {
   steps: CalculationStep[];
   currentStep: string;
   progress: number;
   isAnalyzing: boolean;
+  isLongRunning?: boolean;
+  elapsedTime?: number;
 }
 
 export const ThinkingTerminal: React.FC<ThinkingTerminalProps> = ({
   steps,
   currentStep,
   progress,
-  isAnalyzing
+  isAnalyzing,
+  isLongRunning = false,
+  elapsedTime = 0
 }) => {
   const terminalRef = React.useRef<HTMLDivElement>(null);
 
@@ -23,6 +27,14 @@ export const ThinkingTerminal: React.FC<ThinkingTerminalProps> = ({
     }
   }, [steps, currentStep]);
 
+  // Format elapsed time for display
+  const formatElapsedTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
   return (
     <div className="bg-white rounded-xl overflow-hidden font-mono text-sm shadow-xl border border-gray-200">
       {/* Header */}
@@ -31,12 +43,20 @@ export const ThinkingTerminal: React.FC<ThinkingTerminalProps> = ({
           <Cpu className="w-4 h-4 text-[#265a39]" />
           <span className="text-gray-900 font-semibold">AI Analysis Terminal</span>
         </div>
-        {isAnalyzing && (
-          <div className="flex items-center gap-2 text-[#265a39]">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-xs">Processing...</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {elapsedTime > 0 && (
+            <div className="flex items-center gap-1 text-gray-500 text-xs">
+              <Clock className="w-3 h-3" />
+              <span>{formatElapsedTime(elapsedTime)}</span>
+            </div>
+          )}
+          {isAnalyzing && (
+            <div className="flex items-center gap-2 text-[#265a39]">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs">Processing...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -46,6 +66,24 @@ export const ThinkingTerminal: React.FC<ThinkingTerminalProps> = ({
           style={{ width: `${progress}%` }}
         />
       </div>
+
+      {/* Long Running Warning Banner */}
+      {isLongRunning && isAnalyzing && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 animate-pulse">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 text-sm">
+                Heavy Computer Vision Processing in Progress
+              </p>
+              <p className="text-amber-700 text-xs mt-1">
+                This detailed analysis involves complex image recognition and symbol detection. 
+                Please don't close this window - we're working hard on your blueprint and will have results soon!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Terminal Content */}
       <div 

@@ -1,31 +1,52 @@
-import { useState } from 'react';
-import { FileText, Check, Menu } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { FileText, Check, Menu, Clock } from 'lucide-react';
 
 import { Sidebar } from '../components/Layout/Sidebar';
 import { DualFileUpload } from '../components/FileUpload/DualFileUpload';
+import { BatchFileUpload } from '../components/FileUpload/BatchFileUpload';
 import { DocumentViewer } from '../components/DocumentViewer/DocumentViewer';
 import { ThinkingTerminal } from '../components/ThinkingTerminal/ThinkingTerminal';
 import { ResultsPanel } from '../components/ResultsPanel/ResultsPanel';
 import { PaymentModal } from '../components/PaymentModal/PaymentModal';
 import { LoginModal } from '../components/Auth/LoginModal';
+import { ErrorModal } from '../components/ErrorModal/ErrorModal';
 import { PDFExportButton } from '../utils/pdfGenerator';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useAuthStore } from '../stores/authStore';
-import { analyzeBlueprint, analyzeDualImages, generateMockAnalysis } from '../services/gemini';
-import { fileToBase64 } from '../utils/fileHelpers';
+import { analyzeWithBackend, analyzeBatchWithBackend } from '../services/backend';
+import type { Analysis } from '../types/analysis';
+
+
 
 export const AnalyzePage: React.FC = () => {
+  // Single analysis mode state
   const [selectedFiles, setSelectedFiles] = useState<{
     legend: File | null;
     floorPlan: File | null;
-    single: File | null;
-  }>({ legend: null, floorPlan: null, single: null });
+  }>({ legend: null, floorPlan: null });
+  
+  // Batch analysis mode state
+  const [batchFiles, setBatchFiles] = useState<File[]>([]);
+  const [batchResults, setBatchResults] = useState<Analysis[]>([]);
+  const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
+  
+  // Analysis mode toggle
+  const [analysisMode, setAnalysisMode] = useState<'single' | 'batch'>('single');
+  
+  // Long running and timing state
+  const [isLongRunning, setIsLongRunning] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Error state
+  const [error, setError] = useState<{ message: string; isRetryable: boolean; type?: 'network' | 'timeout' | 'file' | 'server' | 'generic' } | null>(null);
   
   const [showPricing, setShowPricing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium' | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [buildingType, setBuildingType] = useState<'residential' | 'commercial' | 'industrial'>('commercial');
   
   const {
     currentAnalysis,
@@ -40,95 +61,65 @@ export const AnalyzePage: React.FC = () => {
 
   const { isAuthenticated, addAnalysis } = useAuthStore();
 
+  // Timer for elapsed time
+  useEffect(() => {
+    if (isAnalyzing) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setElapsedTime(0);
+      setIsLongRunning(false);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isAnalyzing]);
+
+  // Handle single file analysis
   const handleFilesSelect = async (files: { 
     legend?: File | null; 
     floorPlan?: File | null; 
-    single?: File | null 
   }) => {
     const newFiles = {
       legend: files.legend !== undefined ? files.legend : selectedFiles.legend,
       floorPlan: files.floorPlan !== undefined ? files.floorPlan : selectedFiles.floorPlan,
-      single: files.single !== undefined ? files.single : selectedFiles.single
     };
     
     setSelectedFiles(newFiles);
     
-    const hasSingleFile = !!newFiles.single;
-    const hasDualFiles = !!newFiles.legend && !!newFiles.floorPlan;
+    // Blueprint file (floorPlan) is required, legend is optional
+    const blueprintFile = newFiles.floorPlan;
+    const legendFile = newFiles.legend;
     
-    if (hasSingleFile || hasDualFiles) {
+    if (blueprintFile) {
       try {
+        setError(null);
         setAnalyzing(true);
+        setIsLongRunning(false);
+        setElapsedTime(0);
         
-        let analysis;
-        const useMock = !import.meta.env.VITE_GEMINI_API_KEY || 
-                        import.meta.env.VITE_GEMINI_API_KEY === 'your_api_key_here';
-        
-        if (useMock) {
-          setCurrentStep('Initializing analysis...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          setProgress(20);
-          
-          setCurrentStep('Analyzing legend symbols...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          setProgress(40);
-          
-          setCurrentStep('Counting symbols in floor plan...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          setProgress(60);
-          
-          setCurrentStep('Calculating load requirements...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          setProgress(80);
-          
-          analysis = generateMockAnalysis();
-          
-          if (newFiles.single) {
-            analysis.fileName = newFiles.single.name;
-            analysis.fileType = newFiles.single.type;
-            analysis.fileData = await fileToBase64(newFiles.single);
-          } else if (newFiles.legend && newFiles.floorPlan) {
-            analysis.fileName = 'dual-analysis';
-            analysis.fileType = 'image/png';
-            analysis.legendFile = {
-              name: newFiles.legend.name,
-              type: newFiles.legend.type,
-              data: await fileToBase64(newFiles.legend)
-            };
-            analysis.floorPlanFile = {
-              name: newFiles.floorPlan.name,
-              type: newFiles.floorPlan.type,
-              data: await fileToBase64(newFiles.floorPlan)
-            };
+        // Always use backend API
+        const analysis = await analyzeWithBackend(
+          blueprintFile,
+          legendFile,
+          buildingType,
+          '',
+          (step: string, progress: number, longRunning?: boolean) => {
+            setCurrentStep(step);
+            setProgress(progress);
+            if (longRunning) {
+              setIsLongRunning(true);
+            }
           }
-          
-          setProgress(100);
-        } else {
-          if (newFiles.single) {
-            const fileData = await fileToBase64(newFiles.single);
-            analysis = await analyzeBlueprint(
-              fileData,
-              newFiles.single.type,
-              (step, progress) => {
-                setCurrentStep(step);
-                setProgress(progress);
-              }
-            );
-          } else if (newFiles.legend && newFiles.floorPlan) {
-            const legendData = await fileToBase64(newFiles.legend);
-            const floorPlanData = await fileToBase64(newFiles.floorPlan);
-            analysis = await analyzeDualImages(
-              legendData,
-              floorPlanData,
-              newFiles.legend.type,
-              newFiles.floorPlan.type,
-              (step, progress) => {
-                setCurrentStep(step);
-                setProgress(progress);
-              }
-            );
-          }
-        }
+        );
         
         if (analysis) {
           setAnalysis(analysis);
@@ -136,16 +127,102 @@ export const AnalyzePage: React.FC = () => {
           addAnalysis(analysis);
         }
         setAnalyzing(false);
-      } catch (error) {
-        console.error('Analysis failed:', error);
-        alert('Analysis failed. Please try again with different files.');
+      } catch (err: any) {
+        console.error('Analysis failed:', err);
         setAnalyzing(false);
+        setError({
+          message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
+          isRetryable: err.isRetryable !== false,
+          type: err.type || 
+            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
+            err.userFriendlyMessage?.includes('too large') ? 'file' :
+            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
+            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
+        });
+      }
+    }
+  };
+
+  // Handle batch file analysis
+  const handleBatchFilesSelect = async (files: File[]) => {
+    setBatchFiles(files);
+    
+    if (files.length > 0) {
+      try {
+        setError(null);
+        setAnalyzing(true);
+        setIsLongRunning(false);
+        setElapsedTime(0);
+        
+        // Use batch analysis endpoint
+        const analyses = await analyzeBatchWithBackend(
+          files,
+          buildingType,
+          '',
+          (step: string, progress: number, longRunning?: boolean) => {
+            setCurrentStep(step);
+            setProgress(progress);
+            if (longRunning) {
+              setIsLongRunning(true);
+            }
+          }
+        );
+        
+        if (analyses && analyses.length > 0) {
+          setBatchResults(analyses);
+          setCurrentBatchIndex(0);
+          // Show first analysis
+          setAnalysis(analyses[0]);
+          // Save all analyses to dashboard
+          analyses.forEach(analysis => addAnalysis(analysis));
+        }
+        setAnalyzing(false);
+      } catch (err: any) {
+        console.error('Batch analysis failed:', err);
+        setAnalyzing(false);
+        setError({
+          message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
+          isRetryable: err.isRetryable !== false,
+          type: err.type || 
+            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
+            err.userFriendlyMessage?.includes('too large') ? 'file' :
+            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
+            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
+        });
       }
     }
   };
 
   const handleClearFiles = () => {
-    setSelectedFiles({ legend: null, floorPlan: null, single: null });
+    if (analysisMode === 'single') {
+      setSelectedFiles({ legend: null, floorPlan: null });
+    } else {
+      setBatchFiles([]);
+      setBatchResults([]);
+      setCurrentBatchIndex(0);
+    }
+    setError(null);
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    if (analysisMode === 'single') {
+      handleFilesSelect(selectedFiles);
+    } else {
+      handleBatchFilesSelect(batchFiles);
+    }
+  };
+
+  const handleBatchNavigation = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentBatchIndex > 0) {
+      const newIndex = currentBatchIndex - 1;
+      setCurrentBatchIndex(newIndex);
+      setAnalysis(batchResults[newIndex]);
+    } else if (direction === 'next' && currentBatchIndex < batchResults.length - 1) {
+      const newIndex = currentBatchIndex + 1;
+      setCurrentBatchIndex(newIndex);
+      setAnalysis(batchResults[newIndex]);
+    }
   };
 
   const handleUnlock = () => {
@@ -173,6 +250,14 @@ export const AnalyzePage: React.FC = () => {
 
   const isLocked = currentAnalysis !== null && !isAuthenticated;
 
+  // Format elapsed time
+  const formatElapsedTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar 
@@ -181,7 +266,7 @@ export const AnalyzePage: React.FC = () => {
         onClose={() => setSidebarOpen(false)}
       />
       
-      <main className="flex-1 flex overflow-hidden" aria-label="Electrical Analysis Interface">
+      <main className="flex-1 flex flex-col overflow-hidden" aria-label="Electrical Analysis Interface">
         {/* Mobile Menu Button */}
         <div className="absolute top-4 left-4 z-30 lg:hidden">
           <button
@@ -194,7 +279,7 @@ export const AnalyzePage: React.FC = () => {
         </div>
         {!currentAnalysis ? (
           // Upload View - Centered
-          <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto">
             <div className="w-full max-w-2xl mx-auto">
               <div className="text-center mb-8">
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
@@ -205,180 +290,301 @@ export const AnalyzePage: React.FC = () => {
                 </p>
               </div>
 
-              <DualFileUpload
-                onFilesSelect={handleFilesSelect}
-                selectedFiles={selectedFiles}
+              {/* Analysis Settings */}
+              <div className="bg-white rounded-xl p-4 mb-6 border border-gray-200 shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                  {/* Building Type Selector */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-700">Building Type:</span>
+                    <select
+                      value={buildingType}
+                      onChange={(e) => setBuildingType(e.target.value as 'residential' | 'commercial' | 'industrial')}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#265a39] focus:border-transparent"
+                    >
+                      <option value="commercial">Commercial</option>
+                      <option value="residential">Residential</option>
+                      <option value="industrial">Industrial</option>
+                    </select>
+                  </div>
+
+                  {/* Analysis Mode Toggle */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-700">Mode:</span>
+                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setAnalysisMode('single')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                          analysisMode === 'single'
+                            ? 'bg-[#265a39] text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        Single
+                      </button>
+                      <button
+                        onClick={() => setAnalysisMode('batch')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                          analysisMode === 'batch'
+                            ? 'bg-[#265a39] text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        Batch
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Modal */}
+              <ErrorModal
+                isOpen={!!error}
+                onClose={() => setError(null)}
+                message={error?.message || ''}
+                isRetryable={error?.isRetryable || false}
+                errorType={error?.type || 'generic'}
+                onRetry={handleRetry}
               />
+
+              {analysisMode === 'single' ? (
+                <DualFileUpload
+                  onFilesSelect={handleFilesSelect}
+                  selectedFiles={selectedFiles}
+                />
+              ) : (
+                <BatchFileUpload
+                  onFilesSelect={handleBatchFilesSelect}
+                  selectedFiles={batchFiles}
+                />
+              )}
 
               {isAnalyzing && (
                 <div className="mt-8 max-w-xl mx-auto">
+                  {/* Time Display */}
+                  <div className="mb-4 flex items-center justify-center gap-2 text-gray-600">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm">
+                      Time elapsed: <span className="font-semibold">{formatElapsedTime(elapsedTime)}</span>
+                    </span>
+                  </div>
+                  
                   <ThinkingTerminal
                     steps={[]}
                     currentStep={currentStep}
                     progress={analysisProgress}
                     isAnalyzing={isAnalyzing}
+                    isLongRunning={isLongRunning}
+                    elapsedTime={elapsedTime}
                   />
+                  
+                  {/* Long Running Notice */}
+                  {isLongRunning && (
+                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800 text-center">
+                        <span className="font-semibold">Please don't close this window.</span>
+                        <br />
+                        The analysis is still running and will complete soon.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         ) : (
-          // Analysis View - Split Screen
-          <>
-            {/* Left Panel - Document */}
-            <section className="flex-1 border-r border-gray-200 bg-white" aria-label="Document Viewer">
-              <DocumentViewer analysis={currentAnalysis} />
-            </section>
-
-            {/* Right Panel - Analysis Results */}
-            <section className="w-[500px] bg-gray-50 overflow-y-auto relative" aria-label="Analysis Results">
-              <div className="p-4 sm:p-6">
-                {/* Header with Export */}
-                <header className="flex items-center justify-between mb-6">
+          // Analysis View - Centered Layout
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <div className="max-w-4xl mx-auto">
+              {/* Header with Export */}
+              <header className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+             
                   <h2 className="font-bold text-gray-900 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-[#265a39]" aria-hidden="true" />
                     Analysis Results
                   </h2>
-                  {isAuthenticated && (
-                    <PDFExportButton analysis={currentAnalysis} />
-                  )}
-                </header>
-
-                {/* Terminal */}
-                <div className="mb-6">
-                  <ThinkingTerminal
-                    steps={currentAnalysis.calculationSteps}
-                    currentStep={currentStep}
-                    progress={analysisProgress}
-                    isAnalyzing={isAnalyzing}
-                  />
                 </div>
+                {isAuthenticated && (
+                  <PDFExportButton analysis={currentAnalysis} />
+                )}
+              </header>
 
-                {/* Results */}
-                <div className="relative">
-                  <ResultsPanel 
-                    analysis={currentAnalysis} 
-                    isLocked={isLocked}
-                  />
-                  
-                  {/* Paywall / Pricing Overlay */}
-                  {isLocked && (
-                    <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-10 rounded-xl">
-                      <div className="w-full max-w-sm mx-4">
-                        {!showPricing ? (
-                          // Initial unlock prompt
-                          <div className="bg-white rounded-2xl p-6 border-2 border-[#265a39]/20 shadow-xl text-center">
-                            <div className="w-16 h-16 bg-[#fdce4e] rounded-full flex items-center justify-center mx-auto mb-4">
-                              <FileText className="w-8 h-8 text-[#265a39]" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">
-                              Unlock Full Analysis
-                            </h3>
-                            <p className="text-gray-600 mb-4 text-sm">
-                              Get complete access to all features including GS1009 compliance, cost estimation, and PDF export.
-                            </p>
-                            <button
-                              onClick={handleUnlock}
-                              className="w-full bg-[#265a39] text-white font-semibold py-3 rounded-xl hover:bg-[#1e4a2d] transition-colors shadow-lg"
-                            >
-                              View Pricing Plans
-                            </button>
-                          </div>
-                        ) : (
-                          // Pricing options
-                          <div className="space-y-4">
-                            <h3 className="text-xl font-bold text-gray-900 text-center mb-4">
-                              Choose Your Plan
-                            </h3>
-                            
-                            {/* Basic Plan */}
-                            <div className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-[#265a39] transition-colors">
-                              <div className="flex justify-between items-start mb-3">
-                                <div>
-                                  <h4 className="font-semibold text-gray-900">Basic</h4>
-                                  <p className="text-sm text-gray-500">50 analyses/year</p>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-2xl font-bold text-[#265a39]">₵5,000</div>
-                                  <div className="text-xs text-gray-500">/year</div>
-                                </div>
-                              </div>
-                              <ul className="text-sm text-gray-600 space-y-1 mb-4">
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  Complete load calculations
-                                </li>
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  GS1009 compliance audit
-                                </li>
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  PDF export
-                                </li>
-                              </ul>
-                              <button
-                                onClick={() => handleSelectPlan('basic')}
-                                className="w-full bg-gray-100 text-gray-900 font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors"
-                              >
-                                Select Basic
-                              </button>
-                            </div>
-
-                            {/* Premium Plan */}
-                            <div className="bg-white rounded-xl p-5 border-2 border-[#fdce4e] relative">
-                              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                <span className="bg-[#fdce4e] text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
-                                  POPULAR
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-start mb-3 mt-2">
-                                <div>
-                                  <h4 className="font-semibold text-gray-900">Premium</h4>
-                                  <p className="text-sm text-gray-500">Unlimited analyses</p>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-2xl font-bold text-[#265a39]">₵8,000</div>
-                                  <div className="text-xs text-gray-500">/year</div>
-                                </div>
-                              </div>
-                              <ul className="text-sm text-gray-600 space-y-1 mb-4">
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  Everything in Basic
-                                </li>
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  Up to 5 team members
-                                </li>
-                                <li className="flex items-center gap-2">
-                                  <Check className="w-4 h-4 text-[#265a39]" />
-                                  Priority support
-                                </li>
-                              </ul>
-                              <button
-                                onClick={() => handleSelectPlan('premium')}
-                                className="w-full bg-[#265a39] text-white font-semibold py-2 rounded-lg hover:bg-[#1e4a2d] transition-colors shadow-lg"
-                              >
-                                Select Premium
-                              </button>
-                            </div>
-
-                            <button
-                              onClick={() => setShowPricing(false)}
-                              className="w-full text-gray-500 text-sm hover:text-gray-700 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+              {/* Document Preview */}
+              <div className="mb-6 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 bg-gray-50">
+                  <h3 className="font-medium text-gray-900">Document Preview</h3>
+                </div>
+                <div className="p-4 max-h-96 overflow-auto">
+                  <DocumentViewer analysis={currentAnalysis} />
                 </div>
               </div>
-            </section>
-          </>
+
+              {/* Batch Navigation */}
+              {analysisMode === 'batch' && batchResults.length > 1 && (
+                <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => handleBatchNavigation('prev')}
+                      disabled={currentBatchIndex === 0}
+                      className="px-4 py-2 text-sm font-medium text-[#265a39] bg-[#265a39]/10 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#265a39]/20 transition-colors"
+                    >
+                      ← Previous Blueprint
+                    </button>
+                    <div className="text-center">
+                      <span className="text-sm font-medium text-gray-900">
+                        {currentBatchIndex + 1} of {batchResults.length}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {batchResults[currentBatchIndex]?.fileName}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleBatchNavigation('next')}
+                      disabled={currentBatchIndex === batchResults.length - 1}
+                      className="px-4 py-2 text-sm font-medium text-[#265a39] bg-[#265a39]/10 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#265a39]/20 transition-colors"
+                    >
+                      Next Blueprint →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Terminal */}
+              <div className="mb-6">
+                <ThinkingTerminal
+                  steps={currentAnalysis.calculationSteps}
+                  currentStep={currentStep}
+                  progress={analysisProgress}
+                  isAnalyzing={isAnalyzing}
+                  isLongRunning={isLongRunning}
+                  elapsedTime={elapsedTime}
+                />
+              </div>
+
+              {/* Results */}
+              <div className="relative">
+                <ResultsPanel 
+                  analysis={currentAnalysis} 
+                  isLocked={isLocked}
+                />
+                
+                {/* Paywall / Pricing Overlay */}
+                {isLocked && (
+                  <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-10 rounded-xl">
+                    <div className="w-full max-w-sm mx-4">
+                      {!showPricing ? (
+                        // Initial unlock prompt
+                        <div className="bg-white rounded-2xl p-6 border-2 border-[#265a39]/20 shadow-xl text-center">
+                          <div className="w-16 h-16 bg-[#fdce4e] rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FileText className="w-8 h-8 text-[#265a39]" />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 mb-2">
+                            Unlock Full Analysis
+                          </h3>
+                          <p className="text-gray-600 mb-4 text-sm">
+                            Get complete access to all features including GS1009 compliance, cost estimation, and PDF export.
+                          </p>
+                          <button
+                            onClick={handleUnlock}
+                            className="w-full bg-[#265a39] text-white font-semibold py-3 rounded-xl hover:bg-[#1e4a2d] transition-colors shadow-lg"
+                          >
+                            View Pricing Plans
+                          </button>
+                        </div>
+                      ) : (
+                        // Pricing options
+                        <div className="space-y-4">
+                          <h3 className="text-xl font-bold text-gray-900 text-center mb-4">
+                            Choose Your Plan
+                          </h3>
+                          
+                          {/* Basic Plan */}
+                          <div className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-[#265a39] transition-colors">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-semibold text-gray-900">Basic</h4>
+                                <p className="text-sm text-gray-500">50 analyses/year</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-[#265a39]">₵5,000</div>
+                                <div className="text-xs text-gray-500">/year</div>
+                              </div>
+                            </div>
+                            <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                Complete load calculations
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                GS1009 compliance audit
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                PDF export
+                              </li>
+                            </ul>
+                            <button
+                              onClick={() => handleSelectPlan('basic')}
+                              className="w-full bg-gray-100 text-gray-900 font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                              Select Basic
+                            </button>
+                          </div>
+
+                          {/* Premium Plan */}
+                          <div className="bg-white rounded-xl p-5 border-2 border-[#fdce4e] relative">
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <span className="bg-[#fdce4e] text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
+                                POPULAR
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-start mb-3 mt-2">
+                              <div>
+                                <h4 className="font-semibold text-gray-900">Premium</h4>
+                                <p className="text-sm text-gray-500">Unlimited analyses</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-[#265a39]">₵8,000</div>
+                                <div className="text-xs text-gray-500">/year</div>
+                              </div>
+                            </div>
+                            <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                Everything in Basic
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                Up to 5 team members
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-[#265a39]" />
+                                Priority support
+                              </li>
+                            </ul>
+                            <button
+                              onClick={() => handleSelectPlan('premium')}
+                              className="w-full bg-[#265a39] text-white font-semibold py-2 rounded-lg hover:bg-[#1e4a2d] transition-colors shadow-lg"
+                            >
+                              Select Premium
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => setShowPricing(false)}
+                            className="w-full text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
