@@ -10,7 +10,7 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onUploadClick, isOpen = true, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({  isOpen = true, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentAnalysis } = useAnalysisStore();
