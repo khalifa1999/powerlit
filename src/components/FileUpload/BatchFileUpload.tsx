@@ -132,7 +132,7 @@ export const BatchFileUpload: React.FC<BatchFileUploadProps> = ({
             Upload multiple blueprints and legends at once
           </p>
           <p className="text-xs text-gray-500">
-            PDF, PNG, or JPG • Max 15MB each
+          PNG, or JPG • Max 15MB each
           </p>
         </label>
       </div>
@@ -157,6 +157,7 @@ export const BatchFileUpload: React.FC<BatchFileUploadProps> = ({
               {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
             </p>
             <button
+              type="button"
               onClick={handleClearAll}
               className="text-xs text-red-600 hover:text-red-800 font-medium"
             >
@@ -176,6 +177,7 @@ export const BatchFileUpload: React.FC<BatchFileUploadProps> = ({
                   <p className="text-xs text-gray-600">{formatFileSize(file.size)}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleRemoveFile(index)}
                   className="p-1.5 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                 >

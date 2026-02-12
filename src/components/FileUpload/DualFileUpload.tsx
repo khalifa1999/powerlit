@@ -145,11 +145,11 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                 <p className="text-xs text-gray-600">
                   Symbol reference chart
                 </p>
-                <p className="text-xs text-green-600 mt-1 font-medium">
-                  Optional
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  Required
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  PDF, PNG, or JPG
+                 PNG, or JPG
                 </p>
               </label>
             </div>
@@ -162,6 +162,7 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                   <p className="text-xs text-gray-600">{formatFileSize(selectedFiles.legend.size)}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleClearLegend}
                   className="p-1.5 hover:bg-gray-200 rounded-full transition-colors"
                 >
@@ -211,7 +212,7 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                   Required
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
-                  PDF, PNG, or JPG
+                 PNG, or JPG
                 </p>
               </label>
             </div>
@@ -224,6 +225,7 @@ export const DualFileUpload: React.FC<DualFileUploadProps> = ({
                   <p className="text-xs text-gray-600">{formatFileSize(selectedFiles.floorPlan.size)}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleClearFloorPlan}
                   className="p-1.5 hover:bg-gray-200 rounded-full transition-colors"
                 >

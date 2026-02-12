@@ -12,6 +12,7 @@
   "dependencies": {
     "@paystack/inline-js": "^2.22.7",
     "@react-pdf/renderer": "^4.3.2",
+    "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/vite": "^4.1.18",
     "lucide-react": "^0.563.0",
     "react": "^18.3.1",

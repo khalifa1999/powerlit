@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Check, Menu, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Check, Menu, Clock, AlertCircle, X } from 'lucide-react';
 
 import { Sidebar } from '../components/Layout/Sidebar';
 import { DualFileUpload } from '../components/FileUpload/DualFileUpload';
@@ -47,6 +48,7 @@ export const AnalyzePage: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium' | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [buildingType, setBuildingType] = useState<'residential' | 'commercial' | 'industrial'>('commercial');
+  const [saveNotification, setSaveNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
   const {
     currentAnalysis,
@@ -59,7 +61,8 @@ export const AnalyzePage: React.FC = () => {
     setCurrentStep,
   } = useAnalysisStore();
 
-  const { isAuthenticated, addAnalysis } = useAuthStore();
+  const { isAuthenticated, saveAnalysis } = useAuthStore();
+  const navigate = useNavigate();
 
   // Timer for elapsed time
   useEffect(() => {
@@ -99,7 +102,11 @@ export const AnalyzePage: React.FC = () => {
     const blueprintFile = newFiles.floorPlan;
     const legendFile = newFiles.legend;
     
-    if (blueprintFile) {
+    // Only run analysis if a NEW blueprint file was just added
+    // Don't run analysis when removing files or only updating legend
+    // Check if floorPlan is a File AND is different from the currently selected one
+    const isNewBlueprintAdded = files.floorPlan instanceof File && files.floorPlan !== selectedFiles.floorPlan;
+    if (blueprintFile && isNewBlueprintAdded) {
       try {
         setError(null);
         setAnalyzing(true);
@@ -123,8 +130,17 @@ export const AnalyzePage: React.FC = () => {
         
         if (analysis) {
           setAnalysis(analysis);
-          // Always save analysis to dashboard
-          addAnalysis(analysis);
+          // Save analysis to dashboard if authenticated
+          if (isAuthenticated) {
+            const result = await saveAnalysis(analysis);
+            if (result.success) {
+              setSaveNotification({ message: 'Analysis saved to your dashboard!', type: 'success' });
+              setTimeout(() => setSaveNotification(null), 5000);
+            } else {
+              setSaveNotification({ message: 'Failed to save analysis: ' + result.error, type: 'error' });
+              setTimeout(() => setSaveNotification(null), 5000);
+            }
+          }
         }
         setAnalyzing(false);
       } catch (err: any) {
@@ -173,8 +189,37 @@ export const AnalyzePage: React.FC = () => {
           setCurrentBatchIndex(0);
           // Show first analysis
           setAnalysis(analyses[0]);
-          // Save all analyses to dashboard
-          analyses.forEach(analysis => addAnalysis(analysis));
+          // Save all analyses to dashboard if authenticated
+          if (isAuthenticated) {
+            let savedCount = 0;
+            let failedCount = 0;
+            
+            for (const analysis of analyses) {
+              const result = await saveAnalysis(analysis);
+              if (result.success) {
+                savedCount++;
+              } else {
+                failedCount++;
+                console.error('Failed to save analysis:', result.error);
+              }
+            }
+            
+            if (savedCount > 0) {
+              setSaveNotification({ 
+                message: `${savedCount} analysis${savedCount > 1 ? 'es' : ''} saved to your dashboard!`, 
+                type: 'success' 
+              });
+              setTimeout(() => setSaveNotification(null), 5000);
+            }
+            
+            if (failedCount > 0) {
+              setSaveNotification({ 
+                message: `Failed to save ${failedCount} analysis${failedCount > 1 ? 'es' : ''}`, 
+                type: 'error' 
+              });
+              setTimeout(() => setSaveNotification(null), 5000);
+            }
+          }
         }
         setAnalyzing(false);
       } catch (err: any) {
@@ -260,6 +305,40 @@ export const AnalyzePage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Save Notification Toast */}
+      {saveNotification && (
+        <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl shadow-xl transition-all max-w-md ${
+          saveNotification.type === 'success'
+            ? 'bg-[#265a39] text-white'
+            : 'bg-red-500 text-white'
+        }`}>
+          <div className="flex items-start gap-3">
+            {saveNotification.type === 'success' ? (
+              <Check className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <p className="font-medium text-lg mb-1">{saveNotification.message}</p>
+              {saveNotification.type === 'success' && (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  View Dashboard →
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setSaveNotification(null)}
+              className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <Sidebar 
         onUploadClick={handleClearFiles} 
         isOpen={sidebarOpen}

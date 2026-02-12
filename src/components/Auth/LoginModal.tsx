@@ -22,7 +22,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login, signup } = useAuthStore();
+  const { signIn, signUp } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,17 +30,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError(null);
 
     try {
-      let success;
+      let result;
       if (mode === 'login') {
-        success = await login(email, password);
+        result = await signIn(email, password);
       } else {
-        success = await signup(email, password, name);
+        result = await signUp(email, password);
       }
 
-      if (success) {
+      if (result.success) {
         onSuccess();
       } else {
-        setError('Invalid credentials. Please try again.');
+        setError(result.error || 'Authentication failed. Please try again.');
       }
     } catch {
       setError('An error occurred. Please try again.');

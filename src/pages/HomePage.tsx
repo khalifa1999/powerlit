@@ -1,12 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
+import { LoginModal } from '../components/Auth/LoginModal';
 import { ArrowRight, Cpu, Shield, TrendingDown } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login');
+
+  const openLogin = () => {
+    setLoginMode('login');
+    setShowLoginModal(true);
+  };
+
+  const openSignup = () => {
+    setLoginMode('signup');
+    setShowLoginModal(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <Header onLoginClick={openLogin} onSignupClick={openSignup} />
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={handleLoginSuccess}
+        mode={loginMode}
+      />
 
       <main aria-label="PowerLit Homepage">
         {/* Hero Section */}
@@ -136,6 +161,48 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
 
+        {/* Sign Up CTA Section */}
+        <section aria-label="Sign Up Call to Action" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl border border-gray-200 text-center">
+              <div className="max-w-2xl mx-auto">
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
+                  Save Your Analyses to the Cloud
+                </h2>
+                <p className="text-gray-600 mb-8">
+                  Create a free account to save your electrical analyses, access them from any device, and build your project history. Perfect for electrical engineers and contractors who need to track multiple projects.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={openSignup}
+                    className="inline-flex items-center justify-center gap-2 bg-[#265a39] text-white font-semibold px-8 py-4 rounded-full hover:bg-[#1e4a2d] transition-all-smooth shadow-lg shadow-[#265a39]/25"
+                  >
+                    Create Free Account
+                    <ArrowRight className="w-5 h-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    onClick={openLogin}
+                    className="inline-flex items-center justify-center gap-2 bg-white text-gray-700 font-semibold px-8 py-4 rounded-full border-2 border-gray-200 hover:border-[#265a39] hover:text-[#265a39] transition-all-smooth"
+                  >
+                    Sign In
+                  </button>
+                </div>
+                
+                <p className="text-sm text-gray-500 mt-6">
+                  Already have an account?{' '}
+                  <button 
+                    onClick={openLogin}
+                    className="text-[#265a39] font-semibold hover:underline"
+                  >
+                    Sign in here
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section aria-label="Call to Action" className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
@@ -173,7 +240,7 @@ export const HomePage: React.FC = () => {
             <span className="text-gray-900 font-semibold">PowerLit</span>
           </div>
           <p className="text-sm text-gray-500">
-            © 2026 PowerLit. Ghana Energy Commission Partner. All rights reserved.
+            PowerLit @ 2026. Ghana Energy Commission Partner. All rights reserved.
           </p>
         </div>
       </footer>

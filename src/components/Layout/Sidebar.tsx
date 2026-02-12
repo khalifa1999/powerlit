@@ -14,11 +14,10 @@ export const Sidebar: React.FC<SidebarProps> = ({  isOpen = true, onClose }) => 
   const location = useLocation();
   const navigate = useNavigate();
   const { currentAnalysis } = useAnalysisStore();
-  const { user, logout } = useAuthStore();
+  const { user, isAuthenticated, signOut } = useAuthStore();
 
-  const handleLogout = () => {
-    logout();
-    sessionStorage.clear();
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
 
@@ -118,21 +117,22 @@ export const Sidebar: React.FC<SidebarProps> = ({  isOpen = true, onClose }) => 
 
       {/* User Section */}
       <div className="p-4 border-t border-gray-200">
-        {user && (
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-900 truncate">{user.name || user.email}</p>
-            <p className="text-xs text-gray-500 truncate">{user.email}</p>
-          </div>
+        {isAuthenticated && user && (
+          <>
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+          </>
         )}
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="text-sm font-medium">Logout</span>
-        </button>
         <div className="mt-4 text-xs text-gray-400 text-center">
-          <p>PowerLit © 2024</p>
+          <p>PowerLit @ 2026</p>
         </div>
       </div>
     </div>

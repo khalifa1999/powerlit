@@ -1,127 +1,237 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { Analysis } from '../types/analysis';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: string;
-}
+import type { Json } from '../types/database';
 
 export interface SavedAnalysis {
   id: string;
   userId: string;
   analysis: Analysis;
   createdAt: string;
-  fileName: string;
+  projectName: string | null;
 }
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   savedAnalyses: SavedAnalysis[];
 
   // Actions
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, name: string) => Promise<boolean>;
-  logout: () => void;
-  addAnalysis: (analysis: Analysis) => void;
-  getUserAnalyses: () => SavedAnalysis[];
-  deleteAnalysis: (analysisId: string) => void;
+  initializeAuth: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => Promise<void>;
+  fetchAnalyses: () => Promise<void>;
+  saveAnalysis: (analysis: Analysis, projectName?: string) => Promise<{ success: boolean; error?: string }>;
+  deleteAnalysis: (analysisId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-// Demo authentication - accepts any email/password
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
-      savedAnalyses: [],
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  savedAnalyses: [],
 
-      login: async (email: string, password: string) => {
-        // Demo mode: accept any non-empty email and password
-        if (!email || !password) {
-          return false;
-        }
-
-        const user: User = {
-          id: email,
-          email: email,
-          name: email.split('@')[0],
-          createdAt: new Date().toISOString(),
-        };
-
-        set({
-          user,
-          isAuthenticated: true
-        });
-
-        return true;
-      },
-
-      signup: async (email: string, password: string, name: string) => {
-        // Demo mode: accept any non-empty values
-        if (!email || !password || !name) {
-          return false;
-        }
-
-        const user: User = {
-          id: email,
-          email: email,
-          name: name,
-          createdAt: new Date().toISOString(),
-        };
-
-        set({
-          user,
+  initializeAuth: async () => {
+    try {
+      // Check for existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        set({ 
+          user: session.user, 
           isAuthenticated: true,
-          savedAnalyses: []
+          isLoading: false 
         });
+        // Fetch user's analyses
+        await get().fetchAnalyses();
+      } else {
+        set({ isLoading: false });
+      }
 
-        return true;
-      },
-
-      logout: () => {
-        set({
-          user: null,
-          isAuthenticated: false
-        });
-      },
-
-      addAnalysis: (analysis: Analysis) => {
-        const { user, savedAnalyses } = get();
-        if (!user) return;
-
-        const newSavedAnalysis: SavedAnalysis = {
-          id: analysis.id,
-          userId: user.id,
-          analysis: analysis,
-          createdAt: new Date().toISOString(),
-          fileName: analysis.fileName,
-        };
-
-        set({
-          savedAnalyses: [newSavedAnalysis, ...savedAnalyses]
-        });
-      },
-
-      getUserAnalyses: () => {
-        const { user, savedAnalyses } = get();
-        if (!user) return [];
-        return savedAnalyses.filter(a => a.userId === user.id);
-      },
-
-      deleteAnalysis: (analysisId: string) => {
-        const { savedAnalyses } = get();
-        set({
-          savedAnalyses: savedAnalyses.filter(a => a.id !== analysisId)
-        });
-      },
-    }),
-    {
-      name: 'powerlit-auth-storage',
-      storage: createJSONStorage(() => sessionStorage),
+      // Listen for auth state changes
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          set({ 
+            user: session.user, 
+            isAuthenticated: true,
+            isLoading: false 
+          });
+          get().fetchAnalyses();
+        } else if (event === 'SIGNED_OUT') {
+          set({ 
+            user: null, 
+            isAuthenticated: false, 
+            savedAnalyses: [],
+            isLoading: false 
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      set({ isLoading: false });
     }
-  )
-);
+  },
+
+  signIn: async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        set({ 
+          user: data.user, 
+          isAuthenticated: true 
+        });
+        await get().fetchAnalyses();
+        return { success: true };
+      }
+
+      return { success: false, error: 'Unknown error occurred' };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+
+  signUp: async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        // Check if email confirmation is required
+        if (data.session) {
+          // Auto-signed in (email confirmation not required)
+          set({ 
+            user: data.user, 
+            isAuthenticated: true 
+          });
+        }
+        return { success: true };
+      }
+
+      return { success: false, error: 'Unknown error occurred' };
+    } catch (error) {
+      console.error('Sign up error:', error);
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+
+  signOut: async () => {
+    try {
+      await supabase.auth.signOut();
+      set({ 
+        user: null, 
+        isAuthenticated: false, 
+        savedAnalyses: [] 
+      });
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  },
+
+  fetchAnalyses: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching analyses:', error);
+        return;
+      }
+
+      const savedAnalyses: SavedAnalysis[] = data.map(item => ({
+        id: item.id,
+        userId: item.user_id,
+        analysis: item.data as unknown as Analysis,
+        createdAt: item.created_at,
+        projectName: item.project_name,
+      }));
+
+      set({ savedAnalyses });
+    } catch (error) {
+      console.error('Error fetching analyses:', error);
+    }
+  },
+
+  saveAnalysis: async (analysis: Analysis, projectName?: string) => {
+    const { user } = get();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('analyses')
+        .insert({
+          user_id: user.id,
+          project_name: projectName || analysis.fileName,
+          data: analysis as unknown as Json,
+        });
+
+      if (error) {
+        console.error('Error saving analysis:', error);
+        return { success: false, error: error.message };
+      }
+
+      // Refresh analyses list
+      await get().fetchAnalyses();
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving analysis:', error);
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+
+  deleteAnalysis: async (analysisId: string) => {
+    const { user } = get();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('analyses')
+        .delete()
+        .eq('id', analysisId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error deleting analysis:', error);
+        return { success: false, error: error.message };
+      }
+
+      // Update local state
+      const { savedAnalyses } = get();
+      set({
+        savedAnalyses: savedAnalyses.filter(a => a.id !== analysisId)
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting analysis:', error);
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  },
+}));

@@ -1,12 +1,36 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { Header } from '../components/Layout/Header';
+import { LoginModal } from '../components/Auth/LoginModal';
 import { Check } from 'lucide-react';
 
 export const PricingPage: React.FC = () => {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login');
+
+  const openLogin = () => {
+    setLoginMode('login');
+    setShowLoginModal(true);
+  };
+
+  const openSignup = () => {
+    setLoginMode('signup');
+    setShowLoginModal(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <Header onLoginClick={openLogin} onSignupClick={openSignup} />
+      
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={handleLoginSuccess}
+        mode={loginMode}
+      />
       
       <main aria-label="Pricing Page" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
@@ -59,13 +83,13 @@ export const PricingPage: React.FC = () => {
                 </li>
               </ul>
 
-              <Link 
-                to="/analyze"
+              <button 
+                onClick={openSignup}
                 className="block w-full bg-gray-100 text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors text-center"
                 aria-label="Get started with Basic plan"
               >
                 Get Started
-              </Link>
+              </button>
             </article>
 
             {/* Premium Plan */}
@@ -120,13 +144,13 @@ export const PricingPage: React.FC = () => {
                 </li>
               </ul>
 
-              <Link 
-                to="/analyze"
+              <button 
+                onClick={openSignup}
                 className="block w-full bg-[#265a39] text-white font-semibold py-3 rounded-xl hover:bg-[#1e4a2d] transition-colors shadow-lg text-center"
                 aria-label="Get started with Premium plan"
               >
                 Get Started
-              </Link>
+              </button>
             </article>
           </div>
 

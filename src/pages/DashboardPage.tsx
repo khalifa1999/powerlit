@@ -8,19 +8,48 @@ import { formatLoad } from '../utils/calculations';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, savedAnalyses, deleteAnalysis } = useAuthStore();
+  const { user, isAuthenticated, savedAnalyses, deleteAnalysis } = useAuthStore();
   const { setAnalysis } = useAnalysisStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Redirect or show message if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen bg-gray-50">
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl p-12 border border-gray-200 text-center max-w-md">
+            <div className="w-16 h-16 bg-[#265a39]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-[#265a39]" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Required</h2>
+            <p className="text-gray-600 mb-6">
+              Please sign in to view your dashboard and saved analyses.
+            </p>
+            <button
+              onClick={() => navigate('/analyze')}
+              className="inline-flex items-center gap-2 bg-[#265a39] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#1e4a2d] transition-colors"
+            >
+              Go to Analyzer
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const handleViewAnalysis = (analysis: typeof savedAnalyses[0]) => {
     setAnalysis(analysis.analysis);
     navigate('/analyze');
   };
 
-  const handleDelete = (e: React.MouseEvent, analysisId: string) => {
+  const handleDelete = async (e: React.MouseEvent, analysisId: string) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this analysis?')) {
-      deleteAnalysis(analysisId);
+      const result = await deleteAnalysis(analysisId);
+      if (!result.success) {
+        alert(result.error || 'Failed to delete analysis');
+      }
     }
   };
 
@@ -59,7 +88,7 @@ export const DashboardPage: React.FC = () => {
           <header className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
             <p className="text-gray-600">
-              Welcome back, {user?.name || user?.email}. Here are your saved analyses.
+              Welcome back, {user?.email}. Here are your saved analyses.
             </p>
           </header>
 
@@ -144,7 +173,7 @@ export const DashboardPage: React.FC = () => {
                         <div className="flex items-center gap-3 mb-2">
                           <FileText className="w-5 h-5 text-[#265a39]" />
                           <h3 className="font-semibold text-gray-900">
-                            {savedAnalysis.fileName}
+                            {savedAnalysis.projectName || 'Untitled Analysis'}
                           </h3>
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                             {savedAnalysis.analysis.buildingType}
