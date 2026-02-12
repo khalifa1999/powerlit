@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Calendar, Zap, Trash2, ArrowRight, Menu } from 'lucide-react';
+import { FileText, Calendar, Zap, Trash2, ArrowRight, Menu, Crown } from 'lucide-react';
 import { Sidebar } from '../components/Layout/Sidebar';
 import { useAuthStore } from '../stores/authStore';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { formatLoad } from '../utils/calculations';
+import { getSubscriptionLabel, getSubscriptionBenefits } from '../types/user';
+import { initializeAuth } from '../stores/authStore';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, savedAnalyses, deleteAnalysis } = useAuthStore();
+  const { user, savedAnalyses, deleteAnalysis, getRemainingAnalyses } = useAuthStore();
   const { setAnalysis } = useAnalysisStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
   const handleViewAnalysis = (analysis: typeof savedAnalyses[0]) => {
     setAnalysis(analysis.analysis);
@@ -33,6 +39,10 @@ export const DashboardPage: React.FC = () => {
       minute: '2-digit'
     });
   };
+
+  const remainingAnalyses = getRemainingAnalyses();
+  const subscriptionLabel = user ? getSubscriptionLabel(user.subscription_tier) : '';
+  const subscriptionBenefits = user ? getSubscriptionBenefits(user.subscription_tier) : [];
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -59,9 +69,48 @@ export const DashboardPage: React.FC = () => {
           <header className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
             <p className="text-gray-600">
-              Welcome back, {user?.name || user?.email}. Here are your saved analyses.
+              Welcome back, {user?.full_name || user?.email}
             </p>
           </header>
+
+          {/* Subscription Status Card */}
+          {user && (
+            <div className="bg-gradient-to-r from-[#265a39] to-[#1e4a2d] rounded-xl p-6 text-white mb-8">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-[#fdce4e] rounded-lg flex items-center justify-center">
+                    <Crown className="w-6 h-6 text-[#265a39]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">{subscriptionLabel} Plan</h2>
+                    <p className="text-white/80 text-sm">
+                      {user.subscription_tier === 'solo' 
+                        ? `${remainingAnalyses} analyses remaining this month`
+                        : 'Unlimited analyses'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {user.subscription_tier === 'solo' && (
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="bg-[#fdce4e] text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-[#e5b93f] transition-colors"
+                  >
+                    Upgrade Plan
+                  </button>
+                )}
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/20">
+                <div className="flex flex-wrap gap-2">
+                  {subscriptionBenefits.slice(0, 3).map((benefit, index) => (
+                    <span key={index} className="text-xs bg-white/20 px-2 py-1 rounded">
+                      {benefit}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats Overview */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" aria-label="Statistics">

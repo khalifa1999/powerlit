@@ -120,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({  isOpen = true, onClose }) => 
       <div className="p-4 border-t border-gray-200">
         {user && (
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-900 truncate">{user.name || user.email}</p>
+            <p className="text-sm font-medium text-gray-900 truncate">{user.full_name || user.email}</p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
           </div>
         )}

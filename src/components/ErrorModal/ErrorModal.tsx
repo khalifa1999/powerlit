@@ -8,7 +8,7 @@ interface ErrorModalProps {
   message: string;
   isRetryable?: boolean;
   onRetry?: () => void;
-  errorType?: 'network' | 'timeout' | 'file' | 'server' | 'generic';
+  errorType?: 'network' | 'timeout' | 'file' | 'server' | 'validation' | 'generic';
 }
 
 export const ErrorModal: React.FC<ErrorModalProps> = ({
@@ -32,6 +32,8 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         return <FileX className="w-12 h-12 text-red-500" />;
       case 'server':
         return <ServerOff className="w-12 h-12 text-red-500" />;
+      case 'validation':
+        return <AlertTriangle className="w-12 h-12 text-orange-500" />;
       default:
         return <AlertTriangle className="w-12 h-12 text-red-500" />;
     }
@@ -47,6 +49,8 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         return 'File Upload Issue';
       case 'server':
         return 'Server Busy';
+      case 'validation':
+        return 'Limit Reached';
       default:
         return title;
     }

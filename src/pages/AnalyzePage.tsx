@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Check, Menu, Clock } from 'lucide-react';
+import { FileText, Check, Menu, Clock, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { Sidebar } from '../components/Layout/Sidebar';
 import { DualFileUpload } from '../components/FileUpload/DualFileUpload';
@@ -15,10 +16,13 @@ import { useAnalysisStore } from '../stores/analysisStore';
 import { useAuthStore } from '../stores/authStore';
 import { analyzeWithBackend, analyzeBatchWithBackend } from '../services/backend';
 import type { Analysis } from '../types/analysis';
+import type { SubscriptionTier } from '../types/user';
 
 
 
 export const AnalyzePage: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Single analysis mode state
   const [selectedFiles, setSelectedFiles] = useState<{
     legend: File | null;
@@ -39,12 +43,12 @@ export const AnalyzePage: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Error state
-  const [error, setError] = useState<{ message: string; isRetryable: boolean; type?: 'network' | 'timeout' | 'file' | 'server' | 'generic' } | null>(null);
+  const [error, setError] = useState<{ message: string; isRetryable: boolean; type?: 'network' | 'timeout' | 'file' | 'server' | 'generic' | 'validation' } | null>(null);
   
   const [showPricing, setShowPricing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium' | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionTier | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [buildingType, setBuildingType] = useState<'residential' | 'commercial' | 'industrial'>('commercial');
   
@@ -59,7 +63,7 @@ export const AnalyzePage: React.FC = () => {
     setCurrentStep,
   } = useAnalysisStore();
 
-  const { isAuthenticated, addAnalysis } = useAuthStore();
+  const { isAuthenticated, addAnalysis, user, canPerformAnalysis, getRemainingAnalyses } = useAuthStore();
 
   // Timer for elapsed time
   useEffect(() => {
@@ -88,6 +92,16 @@ export const AnalyzePage: React.FC = () => {
     legend?: File | null; 
     floorPlan?: File | null; 
   }) => {
+    // Check if user can perform analysis
+    if (isAuthenticated && !canPerformAnalysis()) {
+      setError({
+        message: 'You have reached your monthly analysis limit. Please upgrade your subscription to continue.',
+        isRetryable: false,
+        type: 'validation'
+      });
+      return;
+    }
+    
     const newFiles = {
       legend: files.legend !== undefined ? files.legend : selectedFiles.legend,
       floorPlan: files.floorPlan !== undefined ? files.floorPlan : selectedFiles.floorPlan,
@@ -130,14 +144,26 @@ export const AnalyzePage: React.FC = () => {
       } catch (err: any) {
         console.error('Analysis failed:', err);
         setAnalyzing(false);
+        
+        // Handle specific error types
+        let errorType: 'network' | 'timeout' | 'file' | 'server' | 'validation' | 'generic' = 'generic';
+        
+        if (err.type === 'network' || err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet')) {
+          errorType = 'network';
+        } else if (err.type === 'timeout' || err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted')) {
+          errorType = 'timeout';
+        } else if (err.type === 'file' || err.userFriendlyMessage?.includes('too large') || err.userFriendlyMessage?.includes('file')) {
+          errorType = 'file';
+        } else if (err.type === 'server' || err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand')) {
+          errorType = 'server';
+        } else if (err.type === 'validation' || err.statusCode === 429) {
+          errorType = 'validation';
+        }
+        
         setError({
           message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
-          isRetryable: err.isRetryable !== false,
-          type: err.type || 
-            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
-            err.userFriendlyMessage?.includes('too large') ? 'file' :
-            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
-            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
+          isRetryable: err.isRetryable !== false && errorType !== 'validation',
+          type: errorType
         });
       }
     }
@@ -145,6 +171,16 @@ export const AnalyzePage: React.FC = () => {
 
   // Handle batch file analysis
   const handleBatchFilesSelect = async (files: File[]) => {
+    // Check if user can perform analysis
+    if (isAuthenticated && !canPerformAnalysis()) {
+      setError({
+        message: 'You have reached your monthly analysis limit. Please upgrade your subscription to continue.',
+        isRetryable: false,
+        type: 'validation'
+      });
+      return;
+    }
+    
     setBatchFiles(files);
     
     if (files.length > 0) {
@@ -180,14 +216,26 @@ export const AnalyzePage: React.FC = () => {
       } catch (err: any) {
         console.error('Batch analysis failed:', err);
         setAnalyzing(false);
+        
+        // Handle specific error types
+        let errorType: 'network' | 'timeout' | 'file' | 'server' | 'validation' | 'generic' = 'generic';
+        
+        if (err.type === 'network' || err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet')) {
+          errorType = 'network';
+        } else if (err.type === 'timeout' || err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted')) {
+          errorType = 'timeout';
+        } else if (err.type === 'file' || err.userFriendlyMessage?.includes('too large') || err.userFriendlyMessage?.includes('file')) {
+          errorType = 'file';
+        } else if (err.type === 'server' || err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand')) {
+          errorType = 'server';
+        } else if (err.type === 'validation' || err.statusCode === 429) {
+          errorType = 'validation';
+        }
+        
         setError({
           message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
-          isRetryable: err.isRetryable !== false,
-          type: err.type || 
-            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
-            err.userFriendlyMessage?.includes('too large') ? 'file' :
-            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
-            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
+          isRetryable: err.isRetryable !== false && errorType !== 'validation',
+          type: errorType
         });
       }
     }
@@ -229,7 +277,7 @@ export const AnalyzePage: React.FC = () => {
     setShowPricing(true);
   };
 
-  const handleSelectPlan = (plan: 'basic' | 'premium') => {
+  const handleSelectPlan = (plan: SubscriptionTier) => {
     setSelectedPlan(plan);
     if (isAuthenticated) {
       setShowPaymentModal(true);
@@ -289,6 +337,33 @@ export const AnalyzePage: React.FC = () => {
                   Upload your electrical documents to analyze symbols, count components, and get pricing
                 </p>
               </div>
+
+              {/* Subscription Status */}
+              {isAuthenticated && user && (
+                <div className="bg-gradient-to-r from-[#265a39] to-[#1e4a2d] rounded-xl p-4 mb-6 text-white">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-[#fdce4e]" />
+                      <span className="font-medium">
+                        {user.subscription_tier === 'solo' 
+                          ? `${getRemainingAnalyses()} analyses remaining this month`
+                          : user.subscription_tier === 'business'
+                          ? 'Business Plan - 50 analyses/year'
+                          : 'Enterprise Plan - Unlimited analyses'
+                        }
+                      </span>
+                    </div>
+                    {user.subscription_tier === 'solo' && getRemainingAnalyses() === 0 && (
+                      <button
+                        onClick={() => navigate('/pricing')}
+                        className="bg-[#fdce4e] text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-[#e5b93f] transition-colors text-sm"
+                      >
+                        Upgrade Now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Analysis Settings */}
               <div className="bg-white rounded-xl p-4 mb-6 border border-gray-200 shadow-sm">
@@ -498,16 +573,16 @@ export const AnalyzePage: React.FC = () => {
                             Choose Your Plan
                           </h3>
                           
-                          {/* Basic Plan */}
+                          {/* Business Plan */}
                           <div className="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-[#265a39] transition-colors">
                             <div className="flex justify-between items-start mb-3">
                               <div>
-                                <h4 className="font-semibold text-gray-900">Basic</h4>
+                                <h4 className="font-semibold text-gray-900">Business</h4>
                                 <p className="text-sm text-gray-500">50 analyses/year</p>
                               </div>
                               <div className="text-right">
-                                <div className="text-2xl font-bold text-[#265a39]">₵5,000</div>
-                                <div className="text-xs text-gray-500">/year</div>
+                                <div className="text-2xl font-bold text-[#265a39]">₵110</div>
+                                <div className="text-xs text-gray-500">/month</div>
                               </div>
                             </div>
                             <ul className="text-sm text-gray-600 space-y-1 mb-4">
@@ -525,14 +600,14 @@ export const AnalyzePage: React.FC = () => {
                               </li>
                             </ul>
                             <button
-                              onClick={() => handleSelectPlan('basic')}
+                              onClick={() => handleSelectPlan('business')}
                               className="w-full bg-gray-100 text-gray-900 font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors"
                             >
-                              Select Basic
+                              Select Business
                             </button>
                           </div>
 
-                          {/* Premium Plan */}
+                          {/* Enterprise Plan */}
                           <div className="bg-white rounded-xl p-5 border-2 border-[#fdce4e] relative">
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                               <span className="bg-[#fdce4e] text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
@@ -541,18 +616,18 @@ export const AnalyzePage: React.FC = () => {
                             </div>
                             <div className="flex justify-between items-start mb-3 mt-2">
                               <div>
-                                <h4 className="font-semibold text-gray-900">Premium</h4>
+                                <h4 className="font-semibold text-gray-900">Enterprise</h4>
                                 <p className="text-sm text-gray-500">Unlimited analyses</p>
                               </div>
                               <div className="text-right">
-                                <div className="text-2xl font-bold text-[#265a39]">₵8,000</div>
-                                <div className="text-xs text-gray-500">/year</div>
+                                <div className="text-2xl font-bold text-[#265a39]">₵220</div>
+                                <div className="text-xs text-gray-500">/month</div>
                               </div>
                             </div>
                             <ul className="text-sm text-gray-600 space-y-1 mb-4">
                               <li className="flex items-center gap-2">
                                 <Check className="w-4 h-4 text-[#265a39]" />
-                                Everything in Basic
+                                Everything in Business
                               </li>
                               <li className="flex items-center gap-2">
                                 <Check className="w-4 h-4 text-[#265a39]" />
@@ -560,14 +635,14 @@ export const AnalyzePage: React.FC = () => {
                               </li>
                               <li className="flex items-center gap-2">
                                 <Check className="w-4 h-4 text-[#265a39]" />
-                                Priority support
+                                API access & dedicated support
                               </li>
                             </ul>
                             <button
-                              onClick={() => handleSelectPlan('premium')}
+                              onClick={() => handleSelectPlan('enterprise')}
                               className="w-full bg-[#265a39] text-white font-semibold py-2 rounded-lg hover:bg-[#1e4a2d] transition-colors shadow-lg"
                             >
-                              Select Premium
+                              Select Enterprise
                             </button>
                           </div>
 

@@ -1,56 +1,5 @@
 import { Analysis, ElectricalComponent, SymbolMatch, CalculationStep, ComplianceCheck, PowerRecommendation } from '../types/analysis';
-
-const API_BASE_URL = 'https://powerlitfastapi-production.up.railway.app';
-//const API_BASE_URL = 'http://0.0.0.0:8000';
-
-
-// Backend API response types
-interface BackendComponent {
-  name: string;
-  quantity: number;
-  rating_watts: number;
-  total_watts: number;
-}
-
-interface BackendLoadCalculation {
-  total_connected_load: number;
-  diversity_factor: number;
-  maximum_demand: number;
-  building_type: 'residential' | 'commercial' | 'industrial';
-}
-
-interface BackendComplianceAudit {
-  standard_clause: string;
-  description: string;
-  compliance_status: 'compliant' | 'non_compliant' | 'review_required';
-}
-
-interface BackendRecommendation {
-  source: 'grid' | 'solar' | 'generator' | 'hybrid';
-  percentage: number;
-  capacity_kw: number;
-  reasoning: string;
-}
-
-interface BackendAnalysisResponse {
-  inventory: BackendComponent[];
-  calculations: BackendLoadCalculation;
-  compliance_audit: BackendComplianceAudit[];
-  recommendations: BackendRecommendation[];
-  processing_time_ms: number;
-}
-
-interface BackendBatchResponse {
-  status: string;
-  files_processed: number;
-  legends_detected: number;
-  blueprint_results: Array<{
-    filename: string;
-    components_found: number;
-    total_watts: number;
-  }>;
-  analysis: BackendAnalysisResponse;
-}
+import { api, BackendAnalysisResponse, BackendBatchResponse } from './api';
 
 // Map backend component type to frontend types
 function mapComponentType(name: string): ElectricalComponent['type'] {
@@ -72,7 +21,7 @@ function mapComponentType(name: string): ElectricalComponent['type'] {
 }
 
 // Transform backend response to frontend Analysis type
-function transformBackendResponse(
+export function transformBackendResponse(
   backendData: BackendAnalysisResponse,
   blueprintFile: File,
   legendFile: File | null,
@@ -188,11 +137,11 @@ function transformBackendResponse(
   }));
 
   const analysis: Analysis = {
-    id: Date.now().toString(),
-    fileName: blueprintFile.name,
+    id: backendData.id || Date.now().toString(),
+    fileName: backendData.file_name || blueprintFile.name,
     fileType: blueprintFile.type,
     fileData: blueprintFileData,
-    timestamp: Date.now(),
+    timestamp: backendData.created_at ? new Date(backendData.created_at).getTime() : Date.now(),
     buildingType: calc.building_type,
     calculationSteps,
     loadCalculation: {
@@ -230,61 +179,39 @@ export async function analyzeWithBackend(
   legendFile: File | null,
   buildingType: 'residential' | 'commercial' | 'industrial' = 'commercial',
   projectName: string = '',
-  onProgress: (step: string, progress: number) => void
+  onProgress: (step: string, progress: number, longRunning?: boolean) => void
 ): Promise<Analysis> {
-  onProgress('Preparing files...', 10);
-
-  const formData = new FormData();
-  formData.append('building_type', buildingType);
-  formData.append('save_history', 'false');
-  
-  if (projectName) {
-    formData.append('project_name', projectName);
-  }
-
-  // Add blueprint file (required)
-  formData.append('blueprint_file', blueprintFile);
-
-  // Add legend file if provided (optional)
-  if (legendFile) {
-    formData.append('legend_file', legendFile);
-  }
-
-  onProgress('Uploading to backend...', 30);
+  onProgress('Preparing files...', 10, false);
 
   // Store file data for later use
   const blueprintFileData = await fileToBase64(blueprintFile);
   const legendFileData = legendFile ? await fileToBase64(legendFile) : null;
 
-  onProgress('Analyzing blueprint...', 50);
+  onProgress('Uploading to backend...', 30, false);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/analysis/analyze`, {
-      method: 'POST',
-      body: formData
-    });
+    onProgress('Analyzing blueprint...', 50, false);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Analysis failed with status ${response.status}`);
-    }
+    const backendData = await api.analysis.analyze(
+      blueprintFile,
+      legendFile,
+      buildingType,
+      projectName,
+      (step, progress) => onProgress(step, progress, false)
+    );
 
-    onProgress('Processing results...', 80);
-
-    const backendData: BackendAnalysisResponse = await response.json();
-    
-    onProgress('Finalizing...', 95);
+    onProgress('Processing results...', 80, false);
 
     const analysis = transformBackendResponse(
-      backendData, 
-      blueprintFile, 
-      legendFile, 
-      blueprintFileData, 
+      backendData,
+      blueprintFile,
+      legendFile,
+      blueprintFileData,
       legendFileData
     );
-    
-    onProgress('Analysis complete!', 100);
-    
+
+    onProgress('Analysis complete!', 100, false);
+
     return analysis;
   } catch (error) {
     console.error('Backend analysis error:', error);
@@ -294,21 +221,12 @@ export async function analyzeWithBackend(
 
 // Health check
 export async function checkBackendHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return await api.health.checkHealth();
 }
 
 // Get diversity factors
 export async function getDiversityFactors(): Promise<Record<string, number>> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analysis/diversity-factors`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch diversity factors');
-  }
-  return response.json();
+  return await api.analysis.getDiversityFactors();
 }
 
 // Batch analysis - analyze multiple files
@@ -316,52 +234,31 @@ export async function analyzeBatchWithBackend(
   files: File[],
   buildingType: 'residential' | 'commercial' | 'industrial' = 'commercial',
   projectName: string = '',
-  onProgress: (step: string, progress: number) => void
+  onProgress: (step: string, progress: number, longRunning?: boolean) => void
 ): Promise<Analysis[]> {
-  onProgress('Preparing files for batch analysis...', 10);
-
-  const formData = new FormData();
-  formData.append('building_type', buildingType);
-  formData.append('save_history', 'false');
-  
-  if (projectName) {
-    formData.append('project_name', projectName);
-  }
-
-  // Add all files to form data
-  files.forEach((file) => {
-    formData.append('files', file);
-  });
-
-  onProgress('Uploading files to backend...', 30);
+  onProgress('Preparing files for batch analysis...', 10, false);
 
   // Store file data for later use
   const fileDataMap: Map<string, string> = new Map();
-  
+
   for (const file of files) {
     const base64 = await fileToBase64(file);
     fileDataMap.set(file.name, base64);
   }
 
-  onProgress('Analyzing blueprints in batch...', 50);
+  onProgress('Uploading files to backend...', 30, false);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/analysis/analyze-batch`, {
-      method: 'POST',
-      body: formData
-    });
+    onProgress('Analyzing blueprints in batch...', 50, false);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Batch analysis failed with status ${response.status}`);
-    }
+    const batchResponse: BackendBatchResponse = await api.analysis.analyzeBatch(
+      files,
+      buildingType,
+      projectName,
+      (step, progress) => onProgress(step, progress, false)
+    );
 
-    onProgress('Processing batch results...', 80);
-
-    // The batch endpoint returns data wrapped in { analysis: {...} }
-    const batchResponse: BackendBatchResponse = await response.json();
-
-    onProgress('Finalizing results...', 95);
+    onProgress('Processing batch results...', 80, false);
 
     // Extract the analysis object from the batch response
     const analysisData = batchResponse.analysis;
@@ -378,9 +275,9 @@ export async function analyzeBatchWithBackend(
         null
       );
     });
-    
-    onProgress('Batch analysis complete!', 100);
-    
+
+    onProgress('Batch analysis complete!', 100, false);
+
     return analyses;
   } catch (error) {
     console.error('Batch analysis error:', error);
@@ -397,6 +294,3 @@ async function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
-
-

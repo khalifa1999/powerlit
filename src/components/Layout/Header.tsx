@@ -1,10 +1,15 @@
 import React from 'react';
-import { Zap, User } from 'lucide-react';
+import { Zap, User, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/';
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
@@ -33,22 +38,31 @@ export const Header: React.FC = () => {
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#265a39] transition-colors"
               >
                 <User className="w-4 h-4" />
-                <span className="hidden sm:inline">{user.name || user.email}</span>
+                <span className="hidden sm:inline">{user.full_name || user.email}</span>
               </Link>
               <button
-                onClick={logout}
-                className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                onClick={handleLogout}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600 transition-colors"
               >
-                Logout
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           ) : (
-            <Link
-              to="/analyze"
-              className="bg-[#265a39] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#1e4a2d] transition-all-smooth shadow-lg shadow-[#265a39]/25"
-            >
-              Get Started
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/login"
+                className="text-sm text-gray-600 hover:text-[#265a39] transition-colors font-medium"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="bg-[#265a39] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-[#1e4a2d] transition-all-smooth shadow-lg shadow-[#265a39]/25"
+              >
+                Get Started
+              </Link>
+            </div>
           )}
         </nav>
       </div>
