@@ -1,19 +1,8 @@
 import { Analysis, ElectricalComponent, SymbolMatch, CalculationStep, ComplianceCheck, PowerRecommendation } from '../types/analysis';
 
 const API_BASE_URL = 'https://powerlitfastapi-production.up.railway.app';
+//const API_BASE_URL = 'http://0.0.0.0:8000';
 
-// Custom error types for better user feedback
-export class AnalysisError extends Error {
-  constructor(
-    message: string, 
-    public userFriendlyMessage: string,
-    public isRetryable: boolean = false,
-    public type: 'network' | 'timeout' | 'file' | 'server' | 'generic' = 'generic'
-  ) {
-    super(message);
-    this.name = 'AnalysisError';
-  }
-}
 
 // Backend API response types
 interface BackendComponent {
@@ -49,6 +38,18 @@ interface BackendAnalysisResponse {
   compliance_audit: BackendComplianceAudit[];
   recommendations: BackendRecommendation[];
   processing_time_ms: number;
+}
+
+interface BackendBatchResponse {
+  status: string;
+  files_processed: number;
+  legends_detected: number;
+  blueprint_results: Array<{
+    filename: string;
+    components_found: number;
+    total_watts: number;
+  }>;
+  analysis: BackendAnalysisResponse;
 }
 
 // Map backend component type to frontend types
@@ -223,80 +224,15 @@ function transformBackendResponse(
   return analysis;
 }
 
-// Helper to get user-friendly error message
-function getUserFriendlyError(error: any): { message: string; isRetryable: boolean; type: 'network' | 'timeout' | 'file' | 'server' | 'generic' } {
-  if (error instanceof AnalysisError) {
-    return { 
-      message: error.userFriendlyMessage, 
-      isRetryable: error.isRetryable,
-      type: error.type || 'generic'
-    };
-  }
-  
-  if (error instanceof TypeError && error.message.includes('fetch')) {
-    return {
-      message: 'Unable to connect to our analysis servers. Please check your internet connection and try again.',
-      isRetryable: true,
-      type: 'network'
-    };
-  }
-  
-  if (error.message?.includes('413') || error.message?.includes('Payload Too Large')) {
-    return {
-      message: 'The files you uploaded are too large. Please try uploading smaller files or reduce the file size.',
-      isRetryable: false,
-      type: 'file'
-    };
-  }
-  
-  if (error.message?.includes('422') || error.message?.includes('Validation')) {
-    return {
-      message: 'The files you uploaded are not in a supported format. Please ensure you\'re uploading PDF, PNG, or JPG files.',
-      isRetryable: false,
-      type: 'file'
-    };
-  }
-  
-  if (error.message?.includes('429')) {
-    return {
-      message: 'You\'ve made too many requests recently. Please wait a moment before trying again.',
-      isRetryable: true,
-      type: 'server'
-    };
-  }
-  
-  if (error.message?.includes('500') || error.message?.includes('502') || error.message?.includes('503')) {
-    return {
-      message: 'Our analysis servers are experiencing high demand right now. Please try again in a few moments.',
-      isRetryable: true,
-      type: 'server'
-    };
-  }
-  
-  if (error.name === 'AbortError') {
-    return {
-      message: 'The analysis was interrupted. Please try again.',
-      isRetryable: true,
-      type: 'timeout'
-    };
-  }
-  
-  return {
-    message: 'Something went wrong during the analysis. Please try again or contact support if the problem persists.',
-    isRetryable: true,
-    type: 'generic'
-  };
-}
-
 // Analyze a single blueprint with optional legend file
 export async function analyzeWithBackend(
   blueprintFile: File,
   legendFile: File | null,
   buildingType: 'residential' | 'commercial' | 'industrial' = 'commercial',
   projectName: string = '',
-  onProgress: (step: string, progress: number, isLongRunning?: boolean) => void
+  onProgress: (step: string, progress: number) => void
 ): Promise<Analysis> {
-  onProgress('Preparing files for analysis...', 10, false);
+  onProgress('Preparing files...', 10);
 
   const formData = new FormData();
   formData.append('building_type', buildingType);
@@ -314,53 +250,30 @@ export async function analyzeWithBackend(
     formData.append('legend_file', legendFile);
   }
 
-  onProgress('Uploading your documents to our servers...', 25, false);
+  onProgress('Uploading to backend...', 30);
 
   // Store file data for later use
   const blueprintFileData = await fileToBase64(blueprintFile);
   const legendFileData = legendFile ? await fileToBase64(legendFile) : null;
 
-  onProgress('AI is analyzing your blueprint... This may take a moment', 40, false);
-
-  // Set up long-running detection
-  let longRunningWarningShown = false;
-  const longRunningTimeout = setTimeout(() => {
-    longRunningWarningShown = true;
-    onProgress(
-      'Heavy computer vision processing in progress... This detailed analysis requires more time', 
-      60, 
-      true
-    );
-  }, 60000); // Show warning after 60 seconds
+  onProgress('Analyzing blueprint...', 50);
 
   try {
-    const controller = new AbortController();
-    
-    // No timeout - we want to wait as long as needed
     const response = await fetch(`${API_BASE_URL}/api/v1/analysis/analyze`, {
       method: 'POST',
-      body: formData,
-      signal: controller.signal
+      body: formData
     });
-
-    clearTimeout(longRunningTimeout);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorResult = getUserFriendlyError({ message: errorData.message || `HTTP ${response.status}` });
-      throw new AnalysisError(
-        errorData.message || `Analysis failed with status ${response.status}`,
-        errorResult.message,
-        errorResult.isRetryable,
-        errorResult.type
-      );
+      throw new Error(errorData.message || `Analysis failed with status ${response.status}`);
     }
 
-    onProgress('Processing analysis results...', 85, longRunningWarningShown);
+    onProgress('Processing results...', 80);
 
     const backendData: BackendAnalysisResponse = await response.json();
     
-    onProgress('Finalizing your report...', 95, longRunningWarningShown);
+    onProgress('Finalizing...', 95);
 
     const analysis = transformBackendResponse(
       backendData, 
@@ -370,27 +283,12 @@ export async function analyzeWithBackend(
       legendFileData
     );
     
-    onProgress('Analysis complete! Your results are ready', 100, false);
+    onProgress('Analysis complete!', 100);
     
     return analysis;
-  } catch (error: any) {
-    clearTimeout(longRunningTimeout);
-    
-    if (error.name === 'AbortError') {
-      throw new AnalysisError(
-        'Request was aborted',
-        'The analysis was interrupted. Please try again.',
-        true,
-        'timeout'
-      );
-    }
-    
-    if (error instanceof AnalysisError) {
-      throw error;
-    }
-    
-    const errorResult = getUserFriendlyError(error);
-    throw new AnalysisError(error.message || 'Unknown error', errorResult.message, errorResult.isRetryable, errorResult.type);
+  } catch (error) {
+    console.error('Backend analysis error:', error);
+    throw error;
   }
 }
 
@@ -418,9 +316,9 @@ export async function analyzeBatchWithBackend(
   files: File[],
   buildingType: 'residential' | 'commercial' | 'industrial' = 'commercial',
   projectName: string = '',
-  onProgress: (step: string, progress: number, isLongRunning?: boolean) => void
+  onProgress: (step: string, progress: number) => void
 ): Promise<Analysis[]> {
-  onProgress('Preparing files for batch analysis...', 10, false);
+  onProgress('Preparing files for batch analysis...', 10);
 
   const formData = new FormData();
   formData.append('building_type', buildingType);
@@ -435,7 +333,7 @@ export async function analyzeBatchWithBackend(
     formData.append('files', file);
   });
 
-  onProgress('Uploading your documents to our servers...', 25, false);
+  onProgress('Uploading files to backend...', 30);
 
   // Store file data for later use
   const fileDataMap: Map<string, string> = new Map();
@@ -445,86 +343,48 @@ export async function analyzeBatchWithBackend(
     fileDataMap.set(file.name, base64);
   }
 
-  onProgress('AI is analyzing your blueprints in batch... This may take a moment', 40, false);
-
-  // Set up long-running detection
-  let longRunningWarningShown = false;
-  const longRunningTimeout = setTimeout(() => {
-    longRunningWarningShown = true;
-    onProgress(
-      'Heavy computer vision processing in progress... Analyzing multiple blueprints requires more time', 
-      60, 
-      true
-    );
-  }, 60000); // Show warning after 60 seconds
+  onProgress('Analyzing blueprints in batch...', 50);
 
   try {
-    const controller = new AbortController();
-    
-    // No timeout - we want to wait as long as needed
     const response = await fetch(`${API_BASE_URL}/api/v1/analysis/analyze-batch`, {
       method: 'POST',
-      body: formData,
-      signal: controller.signal
+      body: formData
     });
-
-    clearTimeout(longRunningTimeout);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorResult = getUserFriendlyError({ message: errorData.message || `HTTP ${response.status}` });
-      throw new AnalysisError(
-        errorData.message || `Batch analysis failed with status ${response.status}`,
-        errorResult.message,
-        errorResult.isRetryable,
-        errorResult.type
-      );
+      throw new Error(errorData.message || `Batch analysis failed with status ${response.status}`);
     }
 
-    onProgress('Processing batch analysis results...', 85, longRunningWarningShown);
+    onProgress('Processing batch results...', 80);
 
-    // The batch endpoint returns an array of analyses or a single response
-    const backendData: BackendAnalysisResponse[] | BackendAnalysisResponse = await response.json();
-    
-    onProgress('Finalizing your reports...', 95, longRunningWarningShown);
+    // The batch endpoint returns data wrapped in { analysis: {...} }
+    const batchResponse: BackendBatchResponse = await response.json();
 
-    // Handle both array and single response formats
-    const dataArray = Array.isArray(backendData) ? backendData : [backendData];
-    
-    const analyses = dataArray.map((data, index) => {
-      const file = files[index] || files[0];
+    onProgress('Finalizing results...', 95);
+
+    // Extract the analysis object from the batch response
+    const analysisData = batchResponse.analysis;
+
+    // Process each file - use blueprint_results to determine which files were processed
+    const analyses = files.map((file) => {
       const fileData = fileDataMap.get(file.name) || '';
-      
+
       return transformBackendResponse(
-        data, 
-        file, 
-        null, 
-        fileData, 
+        analysisData,
+        file,
+        null,
+        fileData,
         null
       );
     });
     
-    onProgress('Batch analysis complete! Your results are ready', 100, false);
+    onProgress('Batch analysis complete!', 100);
     
     return analyses;
-  } catch (error: any) {
-    clearTimeout(longRunningTimeout);
-    
-    if (error.name === 'AbortError') {
-      throw new AnalysisError(
-        'Request was aborted',
-        'The analysis was interrupted. Please try again.',
-        true,
-        'timeout'
-      );
-    }
-    
-    if (error instanceof AnalysisError) {
-      throw error;
-    }
-    
-    const errorResult = getUserFriendlyError(error);
-    throw new AnalysisError(error.message || 'Unknown error', errorResult.message, errorResult.isRetryable, errorResult.type);
+  } catch (error) {
+    console.error('Batch analysis error:', error);
+    throw error;
   }
 }
 
@@ -537,3 +397,6 @@ async function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+
+

@@ -7,10 +7,10 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: 'Helvetica',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#ff4500',
+    backgroundColor: '#265a39',
     padding: 20,
     margin: -30,
     marginBottom: 20,
@@ -31,9 +31,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ff4500',
+    color: '#265a39',
     marginBottom: 8,
-    borderBottom: '1 solid #ff4500',
+    borderBottom: '1 solid #265a39',
     paddingBottom: 4,
   },
   text: {
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: 'bold',
-    color: 'white',
+    color: '#265a39',
   },
   grid: {
     flexDirection: 'row',
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   gridValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ff4500',
+    color: '#265a39',
   },
   table: {
     width: '100%',
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   tableHeader: {
-    backgroundColor: '#ff4500',
+    backgroundColor: '#265a39',
     color: 'white',
     fontWeight: 'bold',
   },
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   checkmark: {
-    color: '#ff4500',
+    color: '#265a39',
     marginRight: 6,
   },
   recommendation: {
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 4,
     marginBottom: 8,
-    borderLeft: '3 solid #ff4500',
+    borderLeft: '3 solid #265a39',
   },
   footer: {
     position: 'absolute',
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 9,
     textAlign: 'right',
-    color: '#a0a0a0',
+    color: '#265a39',
   },
   grandTotal: {
     flexDirection: 'row',
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
     padding: 10,
     marginTop: 10,
-    borderTop: '2 solid #ff4500',
+    borderTop: '2 solid #265a39',
   },
   grandTotalLabel: {
     fontSize: 12,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   grandTotalValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ff4500',
+    color: '#ffffff',
   },
 });
 
@@ -327,7 +327,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({ analysis }) =>
     <PDFDownloadLink
       document={<AnalysisPDF analysis={analysis} />}
       fileName={`powerlit-analysis-${analysis.id}.pdf`}
-      className="bg-[#ff4500] text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-[#ff5722] transition-all-smooth shadow-lg shadow-[#ff4500]/25"
+      className="bg-[#265a39] text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 hover:bg-[#52a170] transition-all-smooth shadow-lg shadow-[#6ba056]/25"
     >
       {({ loading }) => (loading ? 'Generating PDF...' : 'Download PDF Report')}
     </PDFDownloadLink>
