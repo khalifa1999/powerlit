@@ -6,6 +6,7 @@ interface ErrorModalProps {
   onClose: () => void;
   title?: string;
   message: string;
+  suggestion?: string;
   isRetryable?: boolean;
   onRetry?: () => void;
   errorType?: 'network' | 'timeout' | 'file' | 'server' | 'generic';
@@ -16,6 +17,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   onClose,
   title = 'Analysis Failed',
   message,
+  suggestion,
   isRetryable = false,
   onRetry,
   errorType = 'generic'
@@ -86,7 +88,15 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             {message}
           </p>
 
-          {errorType === 'timeout' && (
+          {suggestion && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">What to do:</span> {suggestion}
+              </p>
+            </div>
+          )}
+
+          {!suggestion && errorType === 'timeout' && (
             <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-sm text-amber-800">
                 <span className="font-semibold">Tip:</span> Complex blueprints with many electrical symbols can take several minutes to analyze. Please try again and allow the process to complete.
@@ -94,7 +104,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             </div>
           )}
 
-          {errorType === 'network' && (
+          {!suggestion && errorType === 'network' && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <span className="font-semibold">Tip:</span> Please check your internet connection and try again.

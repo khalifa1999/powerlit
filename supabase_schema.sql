@@ -1,6 +1,14 @@
 -- Supabase Database Schema for PowerLit
 -- Run these SQL commands in the Supabase SQL Editor (https://supabase.com/dashboard)
 
+-- Create the profiles table to store user metadata
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create the analyses table
 CREATE TABLE IF NOT EXISTS public.analyses (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -11,7 +19,34 @@ CREATE TABLE IF NOT EXISTS public.analyses (
 );
 
 -- Enable Row Level Security (RLS)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for profiles table
+-- Users can view own profile
+CREATE POLICY "Users can view own profile"
+    ON public.profiles
+    FOR SELECT
+    USING (auth.uid() = id);
+
+-- Users can insert own profile
+CREATE POLICY "Users can insert own profile"
+    ON public.profiles
+    FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
+-- Users can update own profile
+CREATE POLICY "Users can update own profile"
+    ON public.profiles
+    FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+-- Users can delete own profile
+CREATE POLICY "Users can delete own profile"
+    ON public.profiles
+    FOR DELETE
+    USING (auth.uid() = id);
 
 -- Create policies for Row Level Security
 
@@ -41,10 +76,12 @@ CREATE POLICY "Users can delete own analyses"
     USING (auth.uid() = user_id);
 
 -- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(id);
 CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON public.analyses(user_id);
 CREATE INDEX IF NOT EXISTS idx_analyses_created_at ON public.analyses(created_at DESC);
 
 -- Grant permissions to authenticated users
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.analyses TO authenticated;
 
 -- Enable realtime for the analyses table (optional - if you want live updates)

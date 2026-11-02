@@ -1,8 +1,16 @@
 import { Analysis, ElectricalComponent, SymbolMatch, CalculationStep, ComplianceCheck, PowerRecommendation } from '../types/analysis';
 
-const API_BASE_URL = 'https://powerlitfastapi-production.up.railway.app';
-//const API_BASE_URL = 'http://0.0.0.0:8000';
+// const API_BASE_URL = 'https://powerlitfastapi-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:8000';
 
+// Error response types
+export interface BackendErrorResponse {
+  error_code: string;
+  user_message: string;
+  suggestion: string;
+  technical_details?: string;
+  retryable: boolean;
+}
 
 // Backend API response types
 interface BackendComponent {
@@ -10,6 +18,155 @@ interface BackendComponent {
   quantity: number;
   rating_watts: number;
   total_watts: number;
+}
+
+// Custom error class with user-friendly properties
+export class AnalysisError extends Error {
+  public userFriendlyMessage: string;
+  public suggestion: string;
+  public errorCode: string;
+  public isRetryable: boolean;
+  public errorType: 'network' | 'timeout' | 'file' | 'server' | 'generic';
+
+  constructor(
+    message: string,
+    userFriendlyMessage: string,
+    suggestion: string,
+    errorCode: string,
+    isRetryable: boolean,
+    errorType: 'network' | 'timeout' | 'file' | 'server' | 'generic'
+  ) {
+    super(message);
+    this.name = 'AnalysisError';
+    this.userFriendlyMessage = userFriendlyMessage;
+    this.suggestion = suggestion;
+    this.errorCode = errorCode;
+    this.isRetryable = isRetryable;
+    this.errorType = errorType;
+  }
+}
+
+// Map error codes to error types
+function mapErrorCodeToType(errorCode: string): 'network' | 'timeout' | 'file' | 'server' | 'generic' {
+  const fileErrors = ['INVALID_FILE_TYPE', 'FILE_TOO_LARGE', 'EMPTY_FILE', 'FILE_READ_ERROR', 'NO_BLUEPRINT_DETECTED'];
+  const networkErrors = ['NETWORK_ERROR'];
+  const timeoutErrors = ['REQUEST_TIMEOUT'];
+  const serverErrors = ['RATE_LIMIT_EXCEEDED', 'SERVICE_UNAVAILABLE', 'AI_SERVICE_ERROR', 'INTERNAL_ERROR'];
+  
+  if (fileErrors.includes(errorCode)) return 'file';
+  if (networkErrors.includes(errorCode)) return 'network';
+  if (timeoutErrors.includes(errorCode)) return 'timeout';
+  if (serverErrors.includes(errorCode)) return 'server';
+  return 'generic';
+}
+
+// Parse backend error response and create user-friendly error
+function parseBackendError(errorData: BackendErrorResponse | any, statusCode: number): AnalysisError {
+  // Debug logging
+  console.log('Parsing backend error:', { statusCode, errorData });
+  
+  // Check if this is a structured error from our backend
+  // The backend returns errors in the 'detail' field of HTTPException
+  const errorDetail = errorData?.detail || errorData;
+  
+  if (errorDetail && (errorDetail.error_code || errorDetail.user_message)) {
+    console.log('Detected structured error response:', errorDetail);
+    return new AnalysisError(
+      errorDetail.technical_details || errorDetail.user_message,
+      errorDetail.user_message,
+      errorDetail.suggestion || 'Please try again.',
+      errorDetail.error_code || 'UNKNOWN_ERROR',
+      errorDetail.retryable !== false, // Default to retryable unless explicitly false
+      mapErrorCodeToType(errorDetail.error_code || 'UNKNOWN_ERROR')
+    );
+  }
+  
+  // Check for FastAPI validation error format (which might have 'detail' as a string or array)
+  if (typeof errorData?.detail === 'string') {
+    console.log('Detected FastAPI string error:', errorData.detail);
+    // This is likely a raw FastAPI validation error
+    return new AnalysisError(
+      errorData.detail,
+      'We couldn\'t process your request',
+      'Please check that all required fields are filled correctly and try again.',
+      'VALIDATION_ERROR',
+      true,
+      'file'
+    );
+  }
+  
+  // Check for detail array (FastAPI validation errors often come as arrays)
+  if (Array.isArray(errorData?.detail)) {
+    console.log('Detected FastAPI array error:', errorData.detail);
+    const details = errorData.detail.map((d: any) => d.msg || String(d)).join(', ');
+    return new AnalysisError(
+      details,
+      'Validation failed',
+      'Please check your input and try again. Make sure all files are valid.',
+      'VALIDATION_ERROR',
+      true,
+      'file'
+    );
+  }
+  
+  // Fallback for legacy or unexpected errors
+  let userMessage = 'An unexpected error occurred';
+  let suggestion = 'Please try again in a few moments. If the problem persists, try uploading a different file.';
+  let errorType: 'network' | 'timeout' | 'file' | 'server' | 'generic' = 'generic';
+  let errorCode = 'UNKNOWN_ERROR';
+  
+  switch (statusCode) {
+    case 400:
+      userMessage = 'Invalid request';
+      suggestion = 'Please check that your files are valid PDF, PNG, or JPG files and try again.';
+      errorType = 'file';
+      errorCode = 'VALIDATION_ERROR';
+      break;
+    case 404:
+      userMessage = 'Not found';
+      suggestion = 'The requested resource could not be found. Please try again.';
+      errorCode = 'NOT_FOUND';
+      break;
+    case 422:
+      userMessage = 'Analysis failed';
+      suggestion = 'We couldn\'t analyze your blueprint. This might be because: 1) The image quality is too low, 2) No electrical symbols were detected, 3) The file is not a valid blueprint. Please try uploading a clearer electrical drawing.';
+      errorType = 'file';
+      errorCode = 'ANALYSIS_FAILED';
+      break;
+    case 429:
+      userMessage = 'Too many requests';
+      suggestion = 'Please wait a moment and try again.';
+      errorType = 'server';
+      errorCode = 'RATE_LIMIT_EXCEEDED';
+      break;
+    case 500:
+      userMessage = 'Server error';
+      suggestion = 'Something went wrong on our end. Please try again in a few moments.';
+      errorType = 'server';
+      errorCode = 'INTERNAL_ERROR';
+      break;
+    case 503:
+      userMessage = 'Service unavailable';
+      suggestion = 'The service is temporarily busy. Please try again in a few moments.';
+      errorType = 'server';
+      errorCode = 'SERVICE_UNAVAILABLE';
+      break;
+    case 504:
+      userMessage = 'Request timeout';
+      suggestion = 'The analysis took too long. Please try with a smaller file or check your internet connection.';
+      errorType = 'timeout';
+      errorCode = 'REQUEST_TIMEOUT';
+      break;
+  }
+  
+  return new AnalysisError(
+    errorData?.message || errorData?.detail || `HTTP ${statusCode}`,
+    userMessage,
+    suggestion,
+    errorCode,
+    true,
+    errorType
+  );
 }
 
 interface BackendLoadCalculation {
@@ -265,8 +422,15 @@ export async function analyzeWithBackend(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Analysis failed with status ${response.status}`);
+      const responseText = await response.text();
+      console.error('Backend error response (analyze):', response.status, responseText);
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { message: responseText };
+      }
+      throw parseBackendError(errorData, response.status);
     }
 
     onProgress('Processing results...', 80);
@@ -288,6 +452,21 @@ export async function analyzeWithBackend(
     return analysis;
   } catch (error) {
     console.error('Backend analysis error:', error);
+    // Re-throw AnalysisError as-is, wrap other errors
+    if (error instanceof AnalysisError) {
+      throw error;
+    }
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new AnalysisError(
+        error.message,
+        'Unable to connect to the analysis service',
+        'Please check your internet connection and try again.',
+        'NETWORK_ERROR',
+        true,
+        'network'
+      );
+    }
     throw error;
   }
 }
@@ -352,8 +531,15 @@ export async function analyzeBatchWithBackend(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Batch analysis failed with status ${response.status}`);
+      const responseText = await response.text();
+      console.error('Backend error response (batch):', response.status, responseText);
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { message: responseText };
+      }
+      throw parseBackendError(errorData, response.status);
     }
 
     onProgress('Processing batch results...', 80);
@@ -384,6 +570,21 @@ export async function analyzeBatchWithBackend(
     return analyses;
   } catch (error) {
     console.error('Batch analysis error:', error);
+    // Re-throw AnalysisError as-is, wrap other errors
+    if (error instanceof AnalysisError) {
+      throw error;
+    }
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new AnalysisError(
+        error.message,
+        'Unable to connect to the analysis service',
+        'Please check your internet connection and try again.',
+        'NETWORK_ERROR',
+        true,
+        'network'
+      );
+    }
     throw error;
   }
 }

@@ -14,7 +14,7 @@ import { ErrorModal } from '../components/ErrorModal/ErrorModal';
 import { PDFExportButton } from '../utils/pdfGenerator';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useAuthStore } from '../stores/authStore';
-import { analyzeWithBackend, analyzeBatchWithBackend } from '../services/backend';
+import { analyzeWithBackend, analyzeBatchWithBackend, AnalysisError } from '../services/backend';
 import type { Analysis } from '../types/analysis';
 
 
@@ -40,7 +40,7 @@ export const AnalyzePage: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Error state
-  const [error, setError] = useState<{ message: string; isRetryable: boolean; type?: 'network' | 'timeout' | 'file' | 'server' | 'generic' } | null>(null);
+  const [error, setError] = useState<{ message: string; suggestion?: string; isRetryable: boolean; type?: 'network' | 'timeout' | 'file' | 'server' | 'generic' } | null>(null);
   
   const [showPricing, setShowPricing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -146,15 +146,24 @@ export const AnalyzePage: React.FC = () => {
       } catch (err: any) {
         console.error('Analysis failed:', err);
         setAnalyzing(false);
-        setError({
-          message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
-          isRetryable: err.isRetryable !== false,
-          type: err.type || 
-            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
-            err.userFriendlyMessage?.includes('too large') ? 'file' :
-            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
-            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
-        });
+        
+        // Handle AnalysisError with structured data
+        if (err instanceof AnalysisError) {
+          setError({
+            message: err.userFriendlyMessage,
+            suggestion: err.suggestion,
+            isRetryable: err.isRetryable,
+            type: err.errorType
+          });
+        } else {
+          // Fallback for legacy errors
+          setError({
+            message: err.message || 'An unexpected error occurred',
+            suggestion: 'Please try again. If the problem persists, try uploading a different file.',
+            isRetryable: true,
+            type: 'generic'
+          });
+        }
       }
     }
   };
@@ -225,15 +234,24 @@ export const AnalyzePage: React.FC = () => {
       } catch (err: any) {
         console.error('Batch analysis failed:', err);
         setAnalyzing(false);
-        setError({
-          message: err.userFriendlyMessage || err.message || 'An unexpected error occurred',
-          isRetryable: err.isRetryable !== false,
-          type: err.type || 
-            (err.message?.includes('internet') || err.userFriendlyMessage?.includes('internet') ? 'network' :
-            err.userFriendlyMessage?.includes('too large') ? 'file' :
-            err.userFriendlyMessage?.includes('servers') || err.userFriendlyMessage?.includes('demand') ? 'server' :
-            err.message?.includes('timeout') || err.userFriendlyMessage?.includes('interrupted') ? 'timeout' : 'generic')
-        });
+        
+        // Handle AnalysisError with structured data
+        if (err instanceof AnalysisError) {
+          setError({
+            message: err.userFriendlyMessage,
+            suggestion: err.suggestion,
+            isRetryable: err.isRetryable,
+            type: err.errorType
+          });
+        } else {
+          // Fallback for legacy errors
+          setError({
+            message: err.message || 'An unexpected error occurred',
+            suggestion: 'Please try again. If the problem persists, try uploading different files.',
+            isRetryable: true,
+            type: 'generic'
+          });
+        }
       }
     }
   };
@@ -420,6 +438,7 @@ export const AnalyzePage: React.FC = () => {
                 isOpen={!!error}
                 onClose={() => setError(null)}
                 message={error?.message || ''}
+                suggestion={error?.suggestion}
                 isRetryable={error?.isRetryable || false}
                 errorType={error?.type || 'generic'}
                 onRetry={handleRetry}
@@ -683,4 +702,4 @@ export const AnalyzePage: React.FC = () => {
       />
     </div>
   );
-};
+}
